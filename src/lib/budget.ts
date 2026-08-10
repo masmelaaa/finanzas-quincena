@@ -3,7 +3,7 @@
 import { addDays, daysBetween, hoy, ymd, type ISODate } from "./dates";
 import type { Period } from "./periods";
 import { periodContains, periodProgress } from "./periods";
-import { transportPlan, type TransportConfig } from "./transport";
+import { effectiveTransport, type TransportConfig } from "./transport";
 import type { Debt, Expense, FixedExpense, Goal } from "./types";
 
 export interface BudgetInput {
@@ -14,6 +14,8 @@ export interface BudgetInput {
   goals: Goal[];
   debts: Debt[];
   transport: TransportConfig;
+  /** Ajuste manual de pasajes para este periodo (si el usuario lo editó). */
+  transportOverride?: number;
   ref?: Date; // "hoy" simulable para tests
 }
 
@@ -25,8 +27,12 @@ export interface BudgetResult {
   fixedTotal: number;
   /** Presupuesto TOTAL de transporte del periodo (se descuenta completo, fijo). */
   transportTotal: number;
-  /** Número de salidas planeadas del periodo (informativo). */
-  transportTrips: number;
+  /** Pasajes efectivos del periodo (editados o automáticos). */
+  transportRides: number;
+  /** Pasajes que calcula la regla automática (para comparar). */
+  transportAutoRides: number;
+  /** true si el usuario ajustó manualmente la cantidad de este periodo. */
+  transportEdited: boolean;
   /** Aporte de metas comprometido este periodo (sugerido, aún no aportado). */
   savingsCommitted: number;
   /** Cuotas de deuda que vencen en el periodo y aún no se han pagado. */
@@ -92,9 +98,12 @@ export function computeBudget(input: BudgetInput): BudgetResult {
     .reduce((s, f) => s + f.amount, 0);
 
   // Transporte: se reserva el TOTAL de la quincena, completo y fijo (no decreciente).
-  const plan = transportPlan(period, transport);
-  const transportTotal = plan.totalCost;
-  const transportTrips = plan.totalDays;
+  // Usa el ajuste manual del usuario si editó la cantidad de esta quincena.
+  const et = effectiveTransport(period, transport, input.transportOverride);
+  const transportTotal = et.cost;
+  const transportRides = et.rides;
+  const transportAutoRides = et.autoRides;
+  const transportEdited = et.edited;
 
   const savingsCommitted = goals.reduce((s, g) => s + goalPerPeriod(g, ref), 0);
 
@@ -112,7 +121,9 @@ export function computeBudget(input: BudgetInput): BudgetResult {
     spent,
     fixedTotal,
     transportTotal,
-    transportTrips,
+    transportRides,
+    transportAutoRides,
+    transportEdited,
     savingsCommitted,
     debtDue,
     available,

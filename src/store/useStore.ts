@@ -53,6 +53,8 @@ interface Store extends AppData {
   setChallenge: (patch: Partial<AppData["challenge"]>) => void;
   // Transporte
   setTransport: (patch: Partial<TransportConfig>) => void;
+  setTransportOverride: (periodId: string, rides: number) => void;
+  clearTransportOverride: (periodId: string) => void;
   // Tema
   setTheme: (t: ThemeMode) => void;
   // Onboarding
@@ -298,6 +300,18 @@ export const useStore = create<Store>()(
       setTransport: (patch) =>
         set((s) => ({ transport: { ...s.transport, ...patch } })),
 
+      setTransportOverride: (periodId, rides) =>
+        set((s) => ({
+          transportOverrides: { ...s.transportOverrides, [periodId]: Math.max(0, Math.round(rides)) },
+        })),
+
+      clearTransportOverride: (periodId) =>
+        set((s) => {
+          const next = { ...s.transportOverrides };
+          delete next[periodId];
+          return { transportOverrides: next };
+        }),
+
       setTheme: (theme) => set({ theme }),
 
       finishOnboarding: () => set({ onboarded: true }),
@@ -316,6 +330,7 @@ export const useStore = create<Store>()(
           extras: s.extras,
           creditCards: s.creditCards,
           savingsPot: s.savingsPot,
+          transportOverrides: s.transportOverrides,
           challenge: s.challenge,
           transport: s.transport,
           onboarded: s.onboarded,

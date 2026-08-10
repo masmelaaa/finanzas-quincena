@@ -40,6 +40,8 @@ export interface AppData {
   creditCards: CreditCard[];
   /** Bote general de ahorro: extras que no se dirigieron a una meta puntual. */
   savingsPot: number;
+  /** Ajuste manual de pasajes por quincena (period.id → pasajes). Si falta, se usa el cálculo automático. */
+  transportOverrides: Record<string, number>;
   challenge: ChallengeState;
   transport: typeof DEFAULT_TRANSPORT;
   onboarded: boolean;
@@ -68,6 +70,7 @@ export function seedData(): AppData {
     extras: [],
     creditCards: [],
     savingsPot: 0,
+    transportOverrides: {},
     challenge: emptyChallenge,
     transport: { ...DEFAULT_TRANSPORT },
     onboarded: false,

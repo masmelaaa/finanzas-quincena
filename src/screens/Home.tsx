@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { useBudget } from "../store/useBudget";
 import { useStore } from "../store/useStore";
 import { Card, CountUp, ProgressBar, QuincenaRing, SectionTitle } from "../ui/primitives";
@@ -6,12 +7,14 @@ import { money, moneyShort } from "../lib/money";
 import { fmtCorto, hoy, parseISO } from "../lib/dates";
 import { periodProgress, periodTitle } from "../lib/periods";
 import { debtBelongsToPeriod, debtDueInPeriod } from "../lib/budget";
+import { TransportEditSheet } from "../ui/TransportEditSheet";
 
 export function Home() {
-  const { period, salary, budget, plan, catSpends, alerts } = useBudget();
+  const { period, salary, budget, catSpends, alerts } = useBudget();
   const debts = useStore((s) => s.debts);
   const transport = useStore((s) => s.transport);
   const payInstallment = useStore((s) => s.payInstallment);
+  const [editTransport, setEditTransport] = useState(false);
 
   const prog = periodProgress(period, hoy());
   const timeFraction = prog.fraction;
@@ -65,7 +68,7 @@ export function Home() {
         <div className="mt-5 space-y-1.5 text-[14px]">
           <Row label="Sueldo" value={money(salary)} />
           <Row label="Gastado" value={`− ${money(budget.spent)}`} muted />
-          <Row label={`Transporte (${plan.totalRides} pasajes)`} value={`− ${money(budget.transportTotal)}`} muted />
+          <Row label={`Transporte (${budget.transportRides} pasajes${budget.transportEdited ? " · editado" : ""})`} value={`− ${money(budget.transportTotal)}`} muted />
           {budget.fixedTotal > 0 && <Row label="Gastos fijos" value={`− ${money(budget.fixedTotal)}`} muted />}
           {budget.savingsCommitted > 0 && <Row label="Ahorro comprometido" value={`− ${money(budget.savingsCommitted)}`} muted />}
           {budget.debtDue > 0 && <Row label="Cuotas de deuda" value={`− ${money(budget.debtDue)}`} muted />}
@@ -83,20 +86,38 @@ export function Home() {
         {topAlert.detail && <p className="text-[13px] opacity-90 mt-0.5">{topAlert.detail}</p>}
       </motion.div>
 
-      {/* Transporte — total fijo de la quincena */}
-      <SectionTitle>Transporte de la quincena</SectionTitle>
-      <Card className="p-4">
+      {/* Transporte — total fijo de la quincena (editable) */}
+      <SectionTitle
+        action={
+          <button
+            onClick={() => setEditTransport(true)}
+            className="text-accent text-[15px] font-semibold normal-case tracking-normal"
+          >
+            Editar
+          </button>
+        }
+      >
+        Transporte de la quincena
+      </SectionTitle>
+      <Card className="p-4" onClick={() => setEditTransport(true)}>
         <div className="flex items-center gap-3">
           <span className="text-3xl">🚌</span>
           <div className="flex-1">
             <div className="flex justify-between items-baseline">
-              <span className="font-semibold">Total a pagar</span>
+              <span className="font-semibold">
+                Total a pagar
+                {budget.transportEdited && (
+                  <span className="ml-2 text-[11px] font-medium text-amber align-middle">editado</span>
+                )}
+              </span>
               <span className="tnum font-bold text-[18px] text-accent">{money(budget.transportTotal)}</span>
             </div>
             <p className="text-[13px] text-ink3">
-              {plan.totalDays} salidas · {plan.totalRides} pasajes · pasaje {money(transport.fare)}
+              {budget.transportRides} pasajes · pasaje {money(transport.fare)}
+              {budget.transportEdited && ` · auto: ${budget.transportAutoRides}`}
             </p>
           </div>
+          <span className="text-ink3 text-[20px]">›</span>
         </div>
       </Card>
 
@@ -188,6 +209,8 @@ export function Home() {
       <p className="text-center text-[12px] text-ink3 mt-8 mb-2">
         Próximo pago: {fmtCorto(nextPayday())} · quincena {period.label}
       </p>
+
+      <TransportEditSheet open={editTransport} onClose={() => setEditTransport(false)} />
     </div>
   );
 }

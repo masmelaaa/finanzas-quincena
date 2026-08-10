@@ -83,6 +83,30 @@ export function transportPlan(period: Period, cfg: TransportConfig): TransportPl
   };
 }
 
+export interface EffectiveTransport {
+  plan: TransportPlan;
+  autoRides: number; // pasajes que calcula la regla
+  rides: number; // pasajes efectivos (editados o automáticos)
+  cost: number; // rides * fare
+  edited: boolean; // true si el usuario ajustó la cantidad
+}
+
+/**
+ * Transporte efectivo de un periodo: usa el ajuste manual del usuario si existe,
+ * o el cálculo automático (impares + sábados − festivos) si no.
+ */
+export function effectiveTransport(
+  period: Period,
+  cfg: TransportConfig,
+  overrideRides?: number,
+): EffectiveTransport {
+  const plan = transportPlan(period, cfg);
+  const autoRides = plan.totalRides;
+  const edited = overrideRides != null && overrideRides !== autoRides;
+  const rides = overrideRides != null ? Math.max(0, overrideRides) : autoRides;
+  return { plan, autoRides, rides, cost: rides * cfg.fare, edited };
+}
+
 /**
  * De un plan, cuánto transporte queda por gastar desde "ref" (hoy) hasta el fin
  * del periodo. Sirve para "reservar" ese dinero en el Disponible real.

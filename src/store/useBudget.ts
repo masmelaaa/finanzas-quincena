@@ -14,14 +14,16 @@ export function useBudget() {
   const goals = useStore((s) => s.goals);
   const debts = useStore((s) => s.debts);
   const transport = useStore((s) => s.transport);
+  const transportOverrides = useStore((s) => s.transportOverrides);
   const categories = useStore((s) => s.categories);
 
   return useMemo(() => {
     const period = periodNow();
     const ref = hoy();
     const salary = salaries[period.id] ?? 0;
+    const transportOverride = transportOverrides[period.id];
 
-    const input = { period, salary, expenses, fixed, goals, debts, transport, ref };
+    const input = { period, salary, expenses, fixed, goals, debts, transport, transportOverride, ref };
     const budget = computeBudget(input);
     const pace = computePace(input, budget);
 
@@ -31,5 +33,5 @@ export function useBudget() {
     const alerts = buildAlerts(budget, pace, catSpends);
 
     return { period, salary, budget, pace, plan, catSpends, alerts };
-  }, [salaries, expenses, fixed, goals, debts, transport, categories]);
+  }, [salaries, expenses, fixed, goals, debts, transport, transportOverrides, categories]);
 }
