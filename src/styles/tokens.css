@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   TOKENS DE COLOR — formato "R G B" para usar con rgb(var(--x) / a)
+   Paleta base = CLARO. El oscuro se redefine en dos lugares:
+   - @media (prefers-color-scheme: dark)  → sigue al sistema
+   - [data-theme="dark"]                  → gana el switch manual
+   [data-theme="light"] fuerza claro aunque el sistema esté oscuro.
+   ============================================================ */
+:root {
+  --bg: 242 242 247; /* #F2F2F7 gris iOS */
+  --bg2: 255 255 255;
+  --card: 255 255 255;
+  --card2: 245 245 248;
+  --ink: 0 0 0;
+  --ink2: 60 60 67; /* label secundario iOS */
+  --ink3: 142 142 147; /* terciario */
+  --line: 209 209 214; /* separadores */
+  --accent: 40 199 111; /* verde menta iOS #28C76F-ish */
+  --amber: 255 159 10; /* #FF9F0A */
+  --danger: 255 59 48; /* #FF3B30 */
+  --blue: 10 132 255; /* #0A84FF */
+  --violet: 124 77 255;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: 0 0 0;
+    --bg2: 28 28 30;
+    --card: 28 28 30; /* #1C1C1E */
+    --card2: 44 44 46; /* #2C2C2E */
+    --ink: 255 255 255;
+    --ink2: 235 235 245;
+    --ink3: 152 152 157;
+    --line: 58 58 60;
+    --accent: 48 209 88; /* #30D158 */
+    --amber: 255 179 64;
+    --danger: 255 69 58; /* #FF453A */
+    --blue: 10 132 255;
+    --violet: 138 99 255;
+    color-scheme: dark;
+  }
+}
+
+/* Override manual: gana en ambos sentidos */
+[data-theme="dark"] {
+  --bg: 0 0 0;
+  --bg2: 28 28 30;
+  --card: 28 28 30;
+  --card2: 44 44 46;
+  --ink: 255 255 255;
+  --ink2: 235 235 245;
+  --ink3: 152 152 157;
+  --line: 58 58 60;
+  --accent: 48 209 88;
+  --amber: 255 179 64;
+  --danger: 255 69 58;
+  --blue: 10 132 255;
+  --violet: 138 99 255;
+  color-scheme: dark;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Segoe UI", Roboto, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+/* Cifras que no bailan al cambiar */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+/* Ocultar scrollbars manteniendo scroll (look app) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Separador hairline iOS */
+.hairline {
+  border-color: rgb(var(--line));
+}
+
+/* Safe areas del iPhone */
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top), 12px);
+}
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-pop {
+  animation: pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}

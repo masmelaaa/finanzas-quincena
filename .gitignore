@@ -1,0 +1,32 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+*.local
+
+# Datos financieros del usuario (nunca se suben — viven en localStorage del navegador)
+# No hay archivos de datos en el repo, pero por si acaso se exporta un backup aquí:
+*.backup.json
+mis-datos*.json
+
+# Secretos (el proyecto no usa ninguno, pero blindamos el repo)
+.env
+.env.*
+*.pem
+*.key
+secrets*.json
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log

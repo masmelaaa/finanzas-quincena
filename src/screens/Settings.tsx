@@ -1,0 +1,195 @@
+import { useRef, useState } from "react";
+import { useStore } from "../store/useStore";
+import { periodNow, nextPeriod, prevPeriod } from "../lib/periods";
+import { Card, SectionTitle, Segmented, Toggle } from "../ui/primitives";
+import { MoneyInput } from "../ui/forms/fields";
+import type { ThemeMode } from "../lib/types";
+
+export function Settings() {
+  const theme = useStore((s) => s.theme);
+  const setTheme = useStore((s) => s.setTheme);
+  const transport = useStore((s) => s.transport);
+  const setTransport = useStore((s) => s.setTransport);
+  const salaries = useStore((s) => s.salaries);
+  const setSalary = useStore((s) => s.setSalary);
+  const categories = useStore((s) => s.categories);
+  const setCategoryLimit = useStore((s) => s.setCategoryLimit);
+  const exportJSON = useStore((s) => s.exportJSON);
+  const importJSON = useStore((s) => s.importJSON);
+  const resetAll = useStore((s) => s.resetAll);
+
+  const cur = periodNow();
+  const [periodId, setPeriodId] = useState(cur.id);
+  const period =
+    periodId === cur.id
+      ? cur
+      : periodId === nextPeriod(cur).id
+        ? nextPeriod(cur)
+        : prevPeriod(cur);
+
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const doExport = () => {
+    const blob = new Blob([exportJSON()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mis-finanzas-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const doImport = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const ok = importJSON(String(reader.result));
+      alert(ok ? "Datos importados ✓" : "No se pudo leer el archivo");
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div>
+      <header className="pt-2 pb-2">
+        <h1 className="text-[28px] font-bold">Ajustes</h1>
+      </header>
+
+      {/* Sueldo */}
+      <SectionTitle>Sueldo por quincena</SectionTitle>
+      <Card className="p-4">
+        <Segmented
+          value={periodId}
+          onChange={setPeriodId}
+          options={[
+            { value: prevPeriod(cur).id, label: "Anterior" },
+            { value: cur.id, label: "Actual" },
+            { value: nextPeriod(cur).id, label: "Siguiente" },
+          ]}
+        />
+        <p className="text-[13px] text-ink3 mt-3 mb-1 ml-1">{period.label}</p>
+        <MoneyInput
+          value={salaries[period.id] ?? 0}
+          onChange={(v) => setSalary(period.id, v)}
+        />
+      </Card>
+
+      {/* Transporte */}
+      <SectionTitle>Transporte</SectionTitle>
+      <Card className="p-4 space-y-4">
+        <Row label="Valor del pasaje">
+          <div className="w-36">
+            <MoneyInput value={transport.fare} onChange={(v) => setTransport({ fare: v })} />
+          </div>
+        </Row>
+        <Stepper
+          label="Pasajes entre semana"
+          value={transport.ridesPerDay}
+          onChange={(v) => setTransport({ ridesPerDay: v })}
+        />
+        <Stepper
+          label="Pasajes los sábados"
+          value={transport.ridesPerSaturday}
+          onChange={(v) => setTransport({ ridesPerSaturday: v })}
+        />
+        <Row label="Trabajo domingos impares">
+          <Toggle on={transport.includeSundays} onChange={(v) => setTransport({ includeSundays: v })} />
+        </Row>
+        <p className="text-[12px] text-ink3">
+          Regla: salgo los días impares + sábados, menos festivos. La app calcula el
+          presupuesto de buses de cada quincena.
+        </p>
+      </Card>
+
+      {/* Límites */}
+      <SectionTitle>Límites por categoría (por quincena)</SectionTitle>
+      <Card className="p-4 space-y-3">
+        {categories.map((c) => (
+          <Row key={c.id} label={`${c.emoji} ${c.name}`}>
+            <div className="w-32">
+              <MoneyInput
+                value={c.limit}
+                onChange={(v) => setCategoryLimit(c.id, v)}
+                placeholder="Sin límite"
+              />
+            </div>
+          </Row>
+        ))}
+      </Card>
+
+      {/* Apariencia */}
+      <SectionTitle>Apariencia</SectionTitle>
+      <Card className="p-4">
+        <Segmented<ThemeMode>
+          value={theme}
+          onChange={setTheme}
+          options={[
+            { value: "auto", label: "Automático" },
+            { value: "light", label: "Claro" },
+            { value: "dark", label: "Oscuro" },
+          ]}
+        />
+      </Card>
+
+      {/* Datos */}
+      <SectionTitle>Datos</SectionTitle>
+      <Card className="divide-y hairline">
+        <button onClick={doExport} className="w-full px-4 py-3.5 text-left flex justify-between">
+          <span>Exportar respaldo (JSON)</span>
+          <span className="text-ink3">↓</span>
+        </button>
+        <button onClick={() => fileRef.current?.click()} className="w-full px-4 py-3.5 text-left flex justify-between">
+          <span>Importar respaldo</span>
+          <span className="text-ink3">↑</span>
+        </button>
+        <button
+          onClick={() => {
+            if (confirm("¿Borrar todos los datos y volver al ejemplo inicial?")) resetAll();
+          }}
+          className="w-full px-4 py-3.5 text-left text-danger"
+        >
+          Borrar todos los datos
+        </button>
+      </Card>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && doImport(e.target.files[0])}
+      />
+
+      <p className="text-center text-[12px] text-ink3 mt-8 mb-4">
+        Todos tus datos viven solo en este dispositivo. Nada se sube a internet.
+      </p>
+    </div>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[15px]">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function Stepper({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <Row label={label}>
+      <div className="flex items-center gap-2">
+        <button onClick={() => onChange(Math.max(0, value - 1))} className="w-9 h-9 rounded-xl bg-card2 text-[20px]">−</button>
+        <span className="w-6 text-center font-semibold tnum">{value}</span>
+        <button onClick={() => onChange(Math.min(10, value + 1))} className="w-9 h-9 rounded-xl bg-card2 text-[20px]">+</button>
+      </div>
+    </Row>
+  );
+}
