@@ -24,6 +24,8 @@ dispositivo** — nada se sube a internet.
   _"a este paso te quedas sin plata el 15"_.
 - **Ahorro paso a paso** — metas con aporte sugerido por quincena (_vas al día / atrasado_)
   y un **reto escalonado** con casillas y racha.
+- **Extras / dinero adicional** — todo lo que entra por fuera de la nómina (regalos, ventas,
+  horas extra) va **100% al ahorro**, dirigido a una meta o al bote general.
 - **Contador de cuotas de deuda** — dices en qué quincena pagas cada deuda (5 o 20) y la
   pantalla principal te muestra la del periodo con el **contador decreciente** de cuotas.
 - **Registro rápido** — teclado numérico grande y atajo de un toque para el pasaje del bus.

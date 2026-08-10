@@ -67,6 +67,20 @@ export interface Debt {
   history: { date: ISODate; amount: number }[];
 }
 
+/**
+ * Ingreso adicional fuera de nómina (regalo, venta, hora extra, propina…).
+ * Por regla, todo extra va 100% al ahorro. Puede dirigirse a una meta concreta
+ * o al "bote" general de ahorro (goalId undefined).
+ */
+export interface Extra {
+  id: string;
+  date: ISODate;
+  amount: number;
+  concept: string; // "Venta", "Regalo", "Hora extra"…
+  emoji: string;
+  goalId?: string; // meta destino; si falta, va al bote general
+}
+
 /** Reto de ahorro escalonado (casillas crecientes). */
 export interface ChallengeState {
   active: boolean;

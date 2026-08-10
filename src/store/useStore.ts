@@ -7,6 +7,7 @@ import type {
   CategoryId,
   Debt,
   Expense,
+  Extra,
   FixedExpense,
   Goal,
   ThemeMode,
@@ -38,6 +39,9 @@ interface Store extends AppData {
   payInstallment: (id: string) => void;
   undoInstallment: (id: string) => void;
   removeDebt: (id: string) => void;
+  // Extras (ingresos fuera de nómina → van full al ahorro)
+  addExtra: (e: Omit<Extra, "id">) => void;
+  removeExtra: (id: string) => void;
   // Reto
   toggleChallengeStep: (index: number) => void;
   setChallenge: (patch: Partial<AppData["challenge"]>) => void;
@@ -203,6 +207,52 @@ export const useStore = create<Store>()(
 
       removeDebt: (id) => set((s) => ({ debts: s.debts.filter((d) => d.id !== id) })),
 
+      addExtra: (e) =>
+        set((s) => {
+          const extra: Extra = { ...e, id: uid() };
+          // Regla: TODO extra va 100% al ahorro.
+          if (extra.goalId && s.goals.some((g) => g.id === extra.goalId)) {
+            // dirigido a una meta concreta
+            return {
+              extras: [extra, ...s.extras],
+              goals: s.goals.map((g) =>
+                g.id === extra.goalId
+                  ? {
+                      ...g,
+                      saved: Math.min(g.target, g.saved + extra.amount),
+                      contributions: [{ date: extra.date, amount: extra.amount }, ...g.contributions],
+                    }
+                  : g,
+              ),
+            };
+          }
+          // sin meta → al bote general de ahorro
+          return {
+            extras: [extra, ...s.extras],
+            savingsPot: s.savingsPot + extra.amount,
+          };
+        }),
+
+      removeExtra: (id) =>
+        set((s) => {
+          const extra = s.extras.find((e) => e.id === id);
+          if (!extra) return s;
+          if (extra.goalId && s.goals.some((g) => g.id === extra.goalId)) {
+            return {
+              extras: s.extras.filter((e) => e.id !== id),
+              goals: s.goals.map((g) =>
+                g.id === extra.goalId
+                  ? { ...g, saved: Math.max(0, g.saved - extra.amount) }
+                  : g,
+              ),
+            };
+          }
+          return {
+            extras: s.extras.filter((e) => e.id !== id),
+            savingsPot: Math.max(0, s.savingsPot - extra.amount),
+          };
+        }),
+
       toggleChallengeStep: (index) =>
         set((s) => {
           const done = s.challenge.done.includes(index)
@@ -232,6 +282,8 @@ export const useStore = create<Store>()(
           fixed: s.fixed,
           goals: s.goals,
           debts: s.debts,
+          extras: s.extras,
+          savingsPot: s.savingsPot,
           challenge: s.challenge,
           transport: s.transport,
           onboarded: s.onboarded,

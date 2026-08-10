@@ -8,6 +8,7 @@ import { fmtCorto, parseISO } from "../lib/dates";
 import { Sheet } from "../ui/Sheet";
 import { GoalForm } from "../ui/forms/GoalForm";
 import { DebtForm } from "../ui/forms/DebtForm";
+import { ExtraForm } from "../ui/forms/ExtraForm";
 import type { Goal } from "../lib/types";
 
 export function Plan() {
@@ -15,13 +16,18 @@ export function Plan() {
   const debts = useStore((s) => s.debts);
   const [goalOpen, setGoalOpen] = useState(false);
   const [debtOpen, setDebtOpen] = useState(false);
+  const [extraOpen, setExtraOpen] = useState(false);
 
   return (
     <div>
       <header className="pt-2 pb-2">
         <h1 className="text-[28px] font-bold">Plan</h1>
-        <p className="text-[14px] text-ink3">Metas, reto de ahorro y deudas</p>
+        <p className="text-[14px] text-ink3">Ahorro, extras, metas y deudas</p>
       </header>
+
+      {/* EXTRAS / DINERO ADICIONAL */}
+      <SectionTitle action={<AddBtn onClick={() => setExtraOpen(true)} />}>Extras · dinero adicional</SectionTitle>
+      <ExtrasCard />
 
       {/* METAS */}
       <SectionTitle action={<AddBtn onClick={() => setGoalOpen(true)} />}>Metas de ahorro</SectionTitle>
@@ -47,7 +53,64 @@ export function Plan() {
       <Sheet open={debtOpen} onClose={() => setDebtOpen(false)} title="Nueva deuda">
         <DebtForm onDone={() => setDebtOpen(false)} />
       </Sheet>
+      <Sheet open={extraOpen} onClose={() => setExtraOpen(false)} title="Registrar un extra">
+        <ExtraForm onDone={() => setExtraOpen(false)} />
+      </Sheet>
     </div>
+  );
+}
+
+/* ---------- Extras / dinero adicional ---------- */
+function ExtrasCard() {
+  const extras = useStore((s) => s.extras);
+  const savingsPot = useStore((s) => s.savingsPot);
+  const goals = useStore((s) => s.goals);
+  const removeExtra = useStore((s) => s.removeExtra);
+
+  // Ahorro total = bote general + lo ahorrado en todas las metas.
+  const enMetas = goals.reduce((a, g) => a + g.saved, 0);
+  const totalAhorro = savingsPot + enMetas;
+  const totalExtras = extras.reduce((a, e) => a + e.amount, 0);
+  const goalName = (id?: string) => (id ? goals.find((g) => g.id === id)?.name ?? "meta" : "Bote general");
+
+  return (
+    <>
+      {/* Resumen de ahorro */}
+      <Card className="p-4 mb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[12px] uppercase tracking-wide text-ink3">Ahorro total</p>
+            <p className="text-[26px] font-bold tnum text-accent leading-tight">{money(totalAhorro)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[12px] text-ink3">🫙 Bote libre</p>
+            <p className="text-[15px] font-semibold tnum">{money(savingsPot)}</p>
+          </div>
+        </div>
+        {totalExtras > 0 && (
+          <p className="text-[12px] text-ink3 mt-2">
+            Llevas {money(totalExtras)} en extras fuera de nómina — todo fue al ahorro. 💪
+          </p>
+        )}
+      </Card>
+
+      {/* Lista de extras */}
+      {extras.length > 0 && (
+        <Card className="divide-y hairline mb-1">
+          {extras.slice(0, 6).map((e) => (
+            <div key={e.id} className="flex items-center gap-3 px-4 py-3">
+              <span className="text-2xl">{e.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-[14px] truncate">{e.concept}</p>
+                <p className="text-[12px] text-ink3">→ {goalName(e.goalId)} · {fmtCorto(parseISO(e.date))}</p>
+              </div>
+              <span className="tnum font-semibold text-accent">+ {money(e.amount)}</span>
+              <button onClick={() => removeExtra(e.id)} className="text-ink3 text-[12px] pl-1">✕</button>
+            </div>
+          ))}
+        </Card>
+      )}
+    </>
   );
 }
 

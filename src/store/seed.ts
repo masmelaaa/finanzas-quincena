@@ -10,6 +10,7 @@ import type {
   ChallengeState,
   Debt,
   Expense,
+  Extra,
   FixedExpense,
   Goal,
   Salaries,
@@ -36,6 +37,9 @@ export interface AppData {
   fixed: FixedExpense[];
   goals: Goal[];
   debts: Debt[];
+  extras: Extra[];
+  /** Bote general de ahorro: extras que no se dirigieron a una meta puntual. */
+  savingsPot: number;
   challenge: ChallengeState;
   transport: typeof DEFAULT_TRANSPORT;
   onboarded: boolean;
@@ -99,6 +103,10 @@ export function seedData(): AppData {
     { id: "f1", name: "Plan celular", amount: 45_000, category: "servicios", when: "primera" },
   ];
 
+  const extras: Extra[] = [
+    { id: "x1", date: ymd(addDays(t, -3)), amount: 80_000, concept: "Venta de ropa", emoji: "👕", goalId: "g1" },
+  ];
+
   const challenge: ChallengeState = {
     active: true,
     baseAmount: 10_000,
@@ -117,6 +125,8 @@ export function seedData(): AppData {
     fixed,
     goals,
     debts,
+    extras,
+    savingsPot: 150_000,
     challenge,
     transport: { ...DEFAULT_TRANSPORT },
     onboarded: false,
