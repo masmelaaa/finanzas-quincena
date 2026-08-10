@@ -5,6 +5,7 @@ import { periodNow } from "../lib/periods";
 import { computeBudget, computePace } from "../lib/budget";
 import { buildAlerts, categorySpends } from "../lib/alerts";
 import { transportPlan } from "../lib/transport";
+import { computeWallet } from "../lib/wallet";
 import { useStore } from "./useStore";
 
 export function useBudget() {
@@ -16,6 +17,7 @@ export function useBudget() {
   const transport = useStore((s) => s.transport);
   const transportOverrides = useStore((s) => s.transportOverrides);
   const categories = useStore((s) => s.categories);
+  const salaryCash = useStore((s) => s.salaryCash);
 
   return useMemo(() => {
     const period = periodNow();
@@ -28,10 +30,11 @@ export function useBudget() {
     const pace = computePace(input, budget);
 
     const plan = transportPlan(period, transport);
+    const wallet = computeWallet(period, salary, salaryCash[period.id] ?? 0, expenses);
 
     const catSpends = categorySpends(categories, expenses, period);
     const alerts = buildAlerts(budget, pace, catSpends);
 
-    return { period, salary, budget, pace, plan, catSpends, alerts };
-  }, [salaries, expenses, fixed, goals, debts, transport, transportOverrides, categories]);
+    return { period, salary, budget, pace, plan, wallet, catSpends, alerts };
+  }, [salaries, salaryCash, expenses, fixed, goals, debts, transport, transportOverrides, categories]);
 }

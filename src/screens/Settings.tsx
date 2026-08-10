@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Reorder, useDragControls } from "framer-motion";
 import { useStore } from "../store/useStore";
 import { periodNow, nextPeriod, prevPeriod } from "../lib/periods";
 import { Card, SectionTitle, Segmented, Toggle } from "../ui/primitives";
@@ -16,7 +17,10 @@ export function Settings() {
   const setTransport = useStore((s) => s.setTransport);
   const salaries = useStore((s) => s.salaries);
   const setSalary = useStore((s) => s.setSalary);
+  const salaryCash = useStore((s) => s.salaryCash);
+  const setSalaryCash = useStore((s) => s.setSalaryCash);
   const categories = useStore((s) => s.categories);
+  const setCategories = useStore((s) => s.setCategories);
   const removeCategory = useStore((s) => s.removeCategory);
   const fixed = useStore((s) => s.fixed);
   const removeFixed = useStore((s) => s.removeFixed);
@@ -80,6 +84,13 @@ export function Settings() {
           value={salaries[period.id] ?? 0}
           onChange={(v) => setSalary(period.id, v)}
         />
+        <p className="text-[13px] text-ink3 mt-3 mb-1 ml-1">¿Cuánto del sueldo es en efectivo?</p>
+        <MoneyInput
+          value={salaryCash[period.id] ?? 0}
+          onChange={(v) => setSalaryCash(period.id, v)}
+          placeholder="0 (todo digital)"
+        />
+        <p className="text-[11px] text-ink3 mt-2 ml-1">El resto se cuenta como digital (banco/tarjeta).</p>
       </Card>
 
       {/* Transporte */}
@@ -158,42 +169,26 @@ export function Settings() {
       >
         Categorías
       </SectionTitle>
-      <Card className="divide-y hairline">
+      <Reorder.Group
+        axis="y"
+        values={categories}
+        onReorder={setCategories}
+        className="bg-card rounded-ios overflow-hidden shadow-card"
+      >
         {categories.map((c) => (
-          <div key={c.id} className="flex items-center gap-3 px-4 py-3">
-            <button
-              onClick={() => { setEditCat(c); setCatOpen(true); }}
-              className="flex items-center gap-3 flex-1 min-w-0 text-left"
-            >
-              <span className="text-2xl">{c.emoji}</span>
-              <div className="min-w-0">
-                <p className="font-medium text-[15px] truncate">{c.name}</p>
-                <p className="text-[12px] text-ink3 tnum">
-                  {c.limit > 0 ? `Límite ${money(c.limit)}/quincena` : "Sin límite"}
-                </p>
-              </div>
-            </button>
-            <button
-              onClick={() => { setEditCat(c); setCatOpen(true); }}
-              className="text-accent text-[13px] font-medium px-1"
-            >
-              Editar
-            </button>
-            {categories.length > 1 && (
-              <button
-                onClick={() => {
-                  if (confirm(`¿Borrar la categoría "${c.name}"? Sus gastos pasarán a otra categoría.`)) removeCategory(c.id);
-                }}
-                className="text-ink3 text-[13px] px-1"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          <CategoryRow
+            key={c.id}
+            category={c}
+            canDelete={categories.length > 1}
+            onEdit={() => { setEditCat(c); setCatOpen(true); }}
+            onDelete={() => {
+              if (confirm(`¿Borrar la categoría "${c.name}"? Sus gastos pasarán a otra categoría.`)) removeCategory(c.id);
+            }}
+          />
         ))}
-      </Card>
+      </Reorder.Group>
       <p className="text-center text-[12px] text-ink3 mt-2 px-4">
-        Toca una categoría para cambiar su emoji, nombre o límite por quincena.
+        Arrastra ⠿ para reordenar · toca para editar emoji, nombre o límite.
       </p>
 
       {/* Apariencia */}
@@ -253,6 +248,55 @@ export function Settings() {
         <CategoryForm category={editCat ?? undefined} onDone={() => setCatOpen(false)} />
       </Sheet>
     </div>
+  );
+}
+
+function CategoryRow({
+  category,
+  canDelete,
+  onEdit,
+  onDelete,
+}: {
+  category: Category;
+  canDelete: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item
+      value={category}
+      dragListener={false}
+      dragControls={controls}
+      className="flex items-center gap-2 px-3 py-3 bg-card border-b hairline last:border-b-0"
+    >
+      {/* asa de arrastre */}
+      <span
+        onPointerDown={(e) => controls.start(e)}
+        className="text-ink3 text-[20px] px-1 cursor-grab touch-none select-none"
+        style={{ touchAction: "none" }}
+        aria-label="Arrastrar para reordenar"
+      >
+        ⠿
+      </span>
+      <button onClick={onEdit} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+        <span className="text-2xl">{category.emoji}</span>
+        <div className="min-w-0">
+          <p className="font-medium text-[15px] truncate">{category.name}</p>
+          <p className="text-[12px] text-ink3 tnum">
+            {category.limit > 0 ? `Límite ${money(category.limit)}/quincena` : "Sin límite"}
+          </p>
+        </div>
+      </button>
+      <button onClick={onEdit} className="text-accent text-[13px] font-medium px-1">
+        Editar
+      </button>
+      {canDelete && (
+        <button onClick={onDelete} className="text-ink3 text-[13px] px-1">
+          ✕
+        </button>
+      )}
+    </Reorder.Item>
   );
 }
 

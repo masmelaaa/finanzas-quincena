@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useStore } from "../store/useStore";
 import { periodNow } from "../lib/periods";
@@ -14,6 +14,9 @@ export function Expenses() {
   const removeExpense = useStore((s) => s.removeExpense);
   const [scope, setScope] = useState<"quincena" | "todo">("quincena");
   const [editing, setEditing] = useState<Expense | null>(null);
+  // callbacks estables para que memo evite re-renders de las filas
+  const onEditRow = useCallback((e: Expense) => setEditing(e), []);
+  const onDeleteRow = useCallback((id: string) => removeExpense(id), [removeExpense]);
 
   const catMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])) as Record<CategoryId, (typeof categories)[number]>,
@@ -85,8 +88,8 @@ export function Expenses() {
                   key={e.id}
                   expense={e}
                   cat={catMap[e.category]}
-                  onDelete={() => removeExpense(e.id)}
-                  onEdit={() => setEditing(e)}
+                  onDelete={onDeleteRow}
+                  onEdit={onEditRow}
                 />
               ))}
             </Card>
@@ -108,7 +111,7 @@ export function Expenses() {
   );
 }
 
-function ExpenseRow({
+const ExpenseRow = memo(function ExpenseRow({
   expense,
   cat,
   onDelete,
@@ -116,8 +119,8 @@ function ExpenseRow({
 }: {
   expense: Expense;
   cat: { emoji: string; name: string };
-  onDelete: () => void;
-  onEdit: () => void;
+  onDelete: (id: string) => void;
+  onEdit: (e: Expense) => void;
 }) {
   const draggedRef = useRef(false);
   return (
@@ -132,12 +135,12 @@ function ExpenseRow({
         dragElastic={{ left: 0.1, right: 0 }}
         onDragStart={() => (draggedRef.current = true)}
         onDragEnd={(_, info) => {
-          if (info.offset.x < -70) onDelete();
+          if (info.offset.x < -70) onDelete(expense.id);
           // permite que el click posterior sepa que hubo arrastre
           setTimeout(() => (draggedRef.current = false), 50);
         }}
         onClick={() => {
-          if (!draggedRef.current) onEdit();
+          if (!draggedRef.current) onEdit(expense);
         }}
         className="relative bg-card flex items-center gap-3 px-4 py-3 cursor-pointer"
       >
@@ -148,7 +151,7 @@ function ExpenseRow({
           </p>
           <p className="text-[12px] text-ink3">
             {cat?.name}
-            {expense.source === "bus" && " · 🚌 bus"}
+            {expense.method === "efectivo" ? " · 💵" : " · 💳"}
             {expense.source === "cuota" && " · cuota"}
             {expense.source === "aporte" && " · ahorro"}
           </p>
@@ -157,4 +160,4 @@ function ExpenseRow({
       </motion.div>
     </div>
   );
-}
+});

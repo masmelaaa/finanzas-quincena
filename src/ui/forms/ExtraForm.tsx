@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useStore } from "../../store/useStore";
 import { Field, TextInput, MoneyInput, SubmitBtn } from "./fields";
+import { Segmented } from "../primitives";
 import { money } from "../../lib/money";
 import { ymd, hoy } from "../../lib/dates";
+import { periodNow } from "../../lib/periods";
+import type { PayMethod } from "../../lib/types";
 
 const CONCEPTS = [
   { emoji: "💵", label: "Efectivo" },
@@ -13,27 +16,47 @@ const CONCEPTS = [
   { emoji: "📈", label: "Comisión" },
 ];
 
+// Destino: sueldo de la quincena, bote de ahorro, o una meta.
+type Dest = { kind: "sueldo" } | { kind: "ahorro" } | { kind: "meta"; goalId: string };
+
 export function ExtraForm({ onDone }: { onDone: () => void }) {
   const goals = useStore((s) => s.goals);
   const addExtra = useStore((s) => s.addExtra);
+  const period = periodNow();
 
   const [amount, setAmount] = useState(0);
   const [concept, setConcept] = useState("Efectivo");
   const [emoji, setEmoji] = useState("💵");
-  const [goalId, setGoalId] = useState<string | undefined>(undefined); // bote general por defecto
+  const [dest, setDest] = useState<Dest>({ kind: "sueldo" });
+  const [method, setMethod] = useState<PayMethod>("efectivo");
 
   const submit = () => {
     if (amount <= 0) return;
-    addExtra({ date: ymd(hoy()), amount, concept: concept.trim() || "Extra", emoji, goalId });
+    const base = { date: ymd(hoy()), amount, concept: concept.trim() || "Extra", emoji, method };
+    if (dest.kind === "sueldo") {
+      addExtra({ ...base, dest: "sueldo", periodId: period.id });
+    } else if (dest.kind === "meta") {
+      addExtra({ ...base, dest: "meta", goalId: dest.goalId });
+    } else {
+      addExtra({ ...base, dest: "ahorro" });
+    }
     onDone();
   };
 
-  const destino = goalId ? goals.find((g) => g.id === goalId)?.name : "Bote general de ahorro";
+  const isSel = (d: Dest) =>
+    d.kind === dest.kind && (d.kind !== "meta" || (dest.kind === "meta" && d.goalId === dest.goalId));
+
+  const resumen =
+    dest.kind === "sueldo"
+      ? "Se suma a tu sueldo de esta quincena"
+      : dest.kind === "meta"
+        ? `Se ahorra en ${goals.find((g) => g.id === (dest as any).goalId)?.name ?? "la meta"}`
+        : "Se ahorra en el bote general";
 
   return (
     <div className="pb-2">
       <div className="rounded-2xl bg-accent/10 text-accent px-4 py-3 mb-4 text-[13px]">
-        💡 Todo lo que entra por fuera de tu nómina va <b>100% al ahorro</b>. Elige a dónde.
+        💡 Registra plata que entra por fuera de tu nómina. Elige si se suma a tu <b>sueldo</b> o va al <b>ahorro</b>.
       </div>
 
       <Field label="¿De qué es el extra?">
@@ -61,23 +84,41 @@ export function ExtraForm({ onDone }: { onDone: () => void }) {
         <MoneyInput value={amount} onChange={setAmount} />
       </Field>
 
-      <Field label="Mandar al ahorro de…">
+      <Field label="¿Digital o efectivo?">
+        <Segmented<PayMethod>
+          value={method}
+          onChange={setMethod}
+          options={[
+            { value: "efectivo", label: "💵 Efectivo" },
+            { value: "digital", label: "💳 Digital" },
+          ]}
+        />
+      </Field>
+
+      <Field label="¿A dónde va?">
         <div className="space-y-2">
           <DestinoBtn
-            active={goalId === undefined}
+            active={isSel({ kind: "sueldo" })}
+            emoji="💰"
+            title="A mi sueldo de esta quincena"
+            subtitle="Sube tu disponible para gastar"
+            onClick={() => setDest({ kind: "sueldo" })}
+          />
+          <DestinoBtn
+            active={isSel({ kind: "ahorro" })}
             emoji="🫙"
             title="Bote general de ahorro"
             subtitle="Ahorro libre, sin meta puntual"
-            onClick={() => setGoalId(undefined)}
+            onClick={() => setDest({ kind: "ahorro" })}
           />
           {goals.map((g) => (
             <DestinoBtn
               key={g.id}
-              active={goalId === g.id}
+              active={isSel({ kind: "meta", goalId: g.id })}
               emoji={g.emoji}
               title={g.name}
               subtitle={`Vas en ${money(g.saved)} de ${money(g.target)}`}
-              onClick={() => setGoalId(g.id)}
+              onClick={() => setDest({ kind: "meta", goalId: g.id })}
             />
           ))}
         </div>
@@ -85,13 +126,13 @@ export function ExtraForm({ onDone }: { onDone: () => void }) {
 
       {amount > 0 && (
         <div className="rounded-2xl bg-card px-4 py-3 mb-2 text-[14px] flex justify-between">
-          <span className="text-ink3">Se ahorrará en {destino}</span>
+          <span className="text-ink3">{resumen}</span>
           <span className="tnum font-semibold text-accent">+ {money(amount)}</span>
         </div>
       )}
 
       <SubmitBtn onClick={submit} disabled={amount <= 0}>
-        {amount > 0 ? `Ahorrar ${money(amount)}` : "Ingresa el monto"}
+        {amount > 0 ? `Registrar ${money(amount)}` : "Ingresa el monto"}
       </SubmitBtn>
     </div>
   );
@@ -122,7 +163,7 @@ function DestinoBtn({
         <p className="font-medium text-[14px] truncate">{title}</p>
         <p className="text-[12px] text-ink3 truncate">{subtitle}</p>
       </div>
-      <span className={`w-5 h-5 rounded-full border-2 ${active ? "border-accent bg-accent" : "border-ink3"}`}>
+      <span className={`w-5 h-5 rounded-full border-2 shrink-0 ${active ? "border-accent bg-accent" : "border-ink3"}`}>
         {active && <span className="block text-white text-[12px] leading-5 text-center">✓</span>}
       </span>
     </button>

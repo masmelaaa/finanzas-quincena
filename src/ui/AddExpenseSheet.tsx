@@ -5,7 +5,8 @@ import { NumPad } from "./NumPad";
 import { useStore } from "../store/useStore";
 import { money } from "../lib/money";
 import { hoy, ymd } from "../lib/dates";
-import type { CategoryId, Expense } from "../lib/types";
+import { Segmented } from "./primitives";
+import type { CategoryId, Expense, PayMethod } from "../lib/types";
 
 /**
  * Sheet para registrar o editar un gasto. Si recibe `expense`, entra en modo edición.
@@ -31,6 +32,7 @@ export function AddExpenseSheet({
   const [cat, setCat] = useState<CategoryId>(firstCat);
   const [note, setNote] = useState("");
   const [date, setDate] = useState(ymd(hoy()));
+  const [method, setMethod] = useState<PayMethod>("digital");
 
   // Al abrir, precarga desde el gasto a editar o resetea a valores nuevos.
   useEffect(() => {
@@ -40,11 +42,13 @@ export function AddExpenseSheet({
       setCat(expense.category);
       setNote(expense.note ?? "");
       setDate(expense.date);
+      setMethod(expense.method ?? "digital");
     } else {
       setAmount(0);
       setCat(firstCat);
       setNote("");
       setDate(ymd(hoy()));
+      setMethod("digital");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, expense]);
@@ -52,26 +56,41 @@ export function AddExpenseSheet({
   const save = () => {
     if (amount <= 0) return;
     if (editing && expense) {
-      updateExpense(expense.id, { amount, category: cat, note: note.trim() || undefined, date });
+      updateExpense(expense.id, { amount, category: cat, note: note.trim() || undefined, date, method });
     } else {
-      addExpense({ date, amount, category: cat, note: note.trim() || undefined, source: "manual" });
+      addExpense({ date, amount, category: cat, note: note.trim() || undefined, method, source: "manual" });
     }
     onClose();
   };
 
   return (
     <Sheet open={open} onClose={onClose} title={editing ? "Editar gasto" : "Registrar gasto"}>
-      {/* Fecha */}
-      <label className="block mb-3">
-        <span className="text-[13px] text-ink3 font-medium ml-1">Fecha del gasto</span>
-        <input
-          type="date"
-          value={date}
-          max={ymd(hoy())}
-          onChange={(e) => e.target.value && setDate(e.target.value)}
-          className="w-full mt-1 bg-card rounded-2xl px-4 py-3 text-[16px] outline-none tnum"
-        />
-      </label>
+      {/* Fecha + método */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <label className="block">
+          <span className="text-[13px] text-ink3 font-medium ml-1">Fecha</span>
+          <input
+            type="date"
+            value={date}
+            max={ymd(hoy())}
+            onChange={(e) => e.target.value && setDate(e.target.value)}
+            className="w-full mt-1 bg-card rounded-2xl px-3 py-3 text-[15px] outline-none tnum"
+          />
+        </label>
+        <div>
+          <span className="text-[13px] text-ink3 font-medium ml-1">Pagué con</span>
+          <div className="mt-1">
+            <Segmented<PayMethod>
+              value={method}
+              onChange={setMethod}
+              options={[
+                { value: "digital", label: "💳 Digital" },
+                { value: "efectivo", label: "💵 Efectivo" },
+              ]}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Selector de categoría */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">

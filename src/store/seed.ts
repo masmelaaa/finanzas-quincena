@@ -32,6 +32,8 @@ export interface AppData {
   version: number;
   theme: ThemeMode;
   salaries: Salaries;
+  /** Parte del sueldo que está en efectivo, por periodo (el resto es digital). */
+  salaryCash: Record<string, number>;
   categories: Category[];
   expenses: Expense[];
   fixed: FixedExpense[];
@@ -63,6 +65,7 @@ export function seedData(): AppData {
     version: 2,
     theme: "auto",
     salaries: {},
+    salaryCash: {},
     categories: CATEGORIES.map((c) => ({ ...c })),
     expenses: [],
     fixed: [],

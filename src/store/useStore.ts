@@ -21,6 +21,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 interface Store extends AppData {
   // Sueldo
   setSalary: (periodId: string, amount: number) => void;
+  setSalaryCash: (periodId: string, amount: number) => void;
   // Gastos
   addExpense: (e: Omit<Expense, "id">) => void;
   updateExpense: (id: string, patch: Partial<Omit<Expense, "id">>) => void;
@@ -76,6 +77,9 @@ export const useStore = create<Store>()(
 
       setSalary: (periodId, amount) =>
         set((s) => ({ salaries: { ...s.salaries, [periodId]: Math.max(0, amount) } })),
+
+      setSalaryCash: (periodId, amount) =>
+        set((s) => ({ salaryCash: { ...s.salaryCash, [periodId]: Math.max(0, amount) } })),
 
       addExpense: (e) =>
         set((s) => ({ expenses: [{ ...e, id: uid() }, ...s.expenses] })),
@@ -232,9 +236,22 @@ export const useStore = create<Store>()(
       addExtra: (e) =>
         set((s) => {
           const extra: Extra = { ...e, id: uid() };
-          // Regla: TODO extra va 100% al ahorro.
-          if (extra.goalId && s.goals.some((g) => g.id === extra.goalId)) {
-            // dirigido a una meta concreta
+          // Destino: sueldo (suma al disponible), meta, o bote general de ahorro.
+          if (extra.dest === "sueldo" && extra.periodId) {
+            return {
+              extras: [extra, ...s.extras],
+              salaries: {
+                ...s.salaries,
+                [extra.periodId]: (s.salaries[extra.periodId] ?? 0) + extra.amount,
+              },
+              // si es efectivo, también suma al efectivo de ese sueldo
+              salaryCash:
+                extra.method === "efectivo"
+                  ? { ...s.salaryCash, [extra.periodId]: (s.salaryCash[extra.periodId] ?? 0) + extra.amount }
+                  : s.salaryCash,
+            };
+          }
+          if (extra.dest === "meta" && extra.goalId && s.goals.some((g) => g.id === extra.goalId)) {
             return {
               extras: [extra, ...s.extras],
               goals: s.goals.map((g) =>
@@ -248,7 +265,7 @@ export const useStore = create<Store>()(
               ),
             };
           }
-          // sin meta → al bote general de ahorro
+          // por defecto → bote general de ahorro
           return {
             extras: [extra, ...s.extras],
             savingsPot: s.savingsPot + extra.amount,
@@ -259,20 +276,29 @@ export const useStore = create<Store>()(
         set((s) => {
           const extra = s.extras.find((e) => e.id === id);
           if (!extra) return s;
-          if (extra.goalId && s.goals.some((g) => g.id === extra.goalId)) {
+          const rest = s.extras.filter((e) => e.id !== id);
+          if (extra.dest === "sueldo" && extra.periodId) {
             return {
-              extras: s.extras.filter((e) => e.id !== id),
+              extras: rest,
+              salaries: {
+                ...s.salaries,
+                [extra.periodId]: Math.max(0, (s.salaries[extra.periodId] ?? 0) - extra.amount),
+              },
+              salaryCash:
+                extra.method === "efectivo"
+                  ? { ...s.salaryCash, [extra.periodId]: Math.max(0, (s.salaryCash[extra.periodId] ?? 0) - extra.amount) }
+                  : s.salaryCash,
+            };
+          }
+          if (extra.dest === "meta" && extra.goalId && s.goals.some((g) => g.id === extra.goalId)) {
+            return {
+              extras: rest,
               goals: s.goals.map((g) =>
-                g.id === extra.goalId
-                  ? { ...g, saved: Math.max(0, g.saved - extra.amount) }
-                  : g,
+                g.id === extra.goalId ? { ...g, saved: Math.max(0, g.saved - extra.amount) } : g,
               ),
             };
           }
-          return {
-            extras: s.extras.filter((e) => e.id !== id),
-            savingsPot: Math.max(0, s.savingsPot - extra.amount),
-          };
+          return { extras: rest, savingsPot: Math.max(0, s.savingsPot - extra.amount) };
         }),
 
       addCard: (c) =>
@@ -353,6 +379,7 @@ export const useStore = create<Store>()(
           version: s.version,
           theme: s.theme,
           salaries: s.salaries,
+          salaryCash: s.salaryCash,
           categories: s.categories,
           expenses: s.expenses,
           fixed: s.fixed,

@@ -163,7 +163,12 @@ function ExtrasCard() {
   const enMetas = goals.reduce((a, g) => a + g.saved, 0);
   const totalAhorro = savingsPot + enMetas;
   const totalExtras = extras.reduce((a, e) => a + e.amount, 0);
-  const goalName = (id?: string) => (id ? goals.find((g) => g.id === id)?.name ?? "meta" : "Bote general");
+  const destLabel = (e: (typeof extras)[number]) =>
+    e.dest === "sueldo"
+      ? "Sueldo"
+      : e.dest === "meta"
+        ? goals.find((g) => g.id === e.goalId)?.name ?? "meta"
+        : "Bote general";
 
   return (
     <>
@@ -181,7 +186,7 @@ function ExtrasCard() {
         </div>
         {totalExtras > 0 && (
           <p className="text-[12px] text-ink3 mt-2">
-            Llevas {money(totalExtras)} en extras fuera de nómina — todo fue al ahorro. 💪
+            Llevas {money(totalExtras)} en dinero extra fuera de nómina. 💪
           </p>
         )}
       </Card>
@@ -194,7 +199,9 @@ function ExtrasCard() {
               <span className="text-2xl">{e.emoji}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-[14px] truncate">{e.concept}</p>
-                <p className="text-[12px] text-ink3">→ {goalName(e.goalId)} · {fmtCorto(parseISO(e.date))}</p>
+                <p className="text-[12px] text-ink3">
+                  → {destLabel(e)} · {e.method === "efectivo" ? "💵" : "💳"} · {fmtCorto(parseISO(e.date))}
+                </p>
               </div>
               <span className="tnum font-semibold text-accent">+ {money(e.amount)}</span>
               <button onClick={() => removeExtra(e.id)} className="text-ink3 text-[12px] pl-1">✕</button>

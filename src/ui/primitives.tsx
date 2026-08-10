@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 /* ---------- Card ---------- */
@@ -168,6 +168,9 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  // id único por instancia: evita que varios Segmented compartan el mismo
+  // layoutId y peleen por el indicador (causa de saltos/trabas).
+  const layoutId = useId();
   return (
     <div className="relative flex bg-black/[0.06] dark:bg-white/[0.08] rounded-[10px] p-0.5">
       {options.map((o) => {
@@ -180,7 +183,7 @@ export function Segmented<T extends string>({
           >
             {active && (
               <motion.span
-                layoutId="seg"
+                layoutId={layoutId}
                 className="absolute inset-0 bg-card rounded-[8px] shadow-sm"
                 transition={{ type: "spring", stiffness: 500, damping: 36 }}
               />

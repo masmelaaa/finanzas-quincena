@@ -13,12 +13,17 @@ export interface Category {
   limit: number;
 }
 
+/** Forma de pago / ubicación del dinero. */
+export type PayMethod = "digital" | "efectivo";
+
 export interface Expense {
   id: string;
   date: ISODate;
   amount: number;
   category: CategoryId;
   note?: string;
+  /** Digital (banco/tarjeta) o efectivo. Por defecto digital. */
+  method?: PayMethod;
   /** Marca de origen para trazabilidad (ej. "bus", "cuota-deuda"). */
   source?: "manual" | "bus" | "cuota" | "aporte";
 }
@@ -71,7 +76,12 @@ export interface Extra {
   amount: number;
   concept: string; // "Venta", "Regalo", "Hora extra"…
   emoji: string;
-  goalId?: string; // meta destino; si falta, va al bote general
+  /** Destino del extra: "sueldo" (suma al disponible), "ahorro" (bote), o una meta. */
+  dest: "sueldo" | "ahorro" | "meta";
+  goalId?: string; // solo si dest === "meta"
+  periodId?: string; // solo si dest === "sueldo" (a qué quincena se suma)
+  /** Digital o efectivo. */
+  method?: PayMethod;
 }
 
 /**

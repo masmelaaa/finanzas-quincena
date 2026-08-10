@@ -10,7 +10,7 @@ import { debtBelongsToPeriod, debtDueInPeriod } from "../lib/budget";
 import { TransportEditSheet } from "../ui/TransportEditSheet";
 
 export function Home() {
-  const { period, salary, budget, catSpends, alerts } = useBudget();
+  const { period, salary, budget, wallet, catSpends, alerts } = useBudget();
   const debts = useStore((s) => s.debts);
   const transport = useStore((s) => s.transport);
   const payInstallment = useStore((s) => s.payInstallment);
@@ -85,6 +85,27 @@ export function Home() {
         <p className="font-semibold text-[15px]">{topAlert.title}</p>
         {topAlert.detail && <p className="text-[13px] opacity-90 mt-0.5">{topAlert.detail}</p>}
       </motion.div>
+
+      {/* Efectivo vs digital */}
+      {(wallet.cash !== 0 || wallet.digital !== 0) && (
+        <>
+          <SectionTitle>¿Dónde está tu plata?</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="p-4">
+              <p className="text-[13px] text-ink3">💵 Efectivo</p>
+              <p className={`text-[20px] font-bold tnum mt-0.5 ${wallet.cash < 0 ? "text-danger" : "text-ink"}`}>
+                {money(wallet.cash)}
+              </p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-[13px] text-ink3">💳 Digital</p>
+              <p className={`text-[20px] font-bold tnum mt-0.5 ${wallet.digital < 0 ? "text-danger" : "text-ink"}`}>
+                {money(wallet.digital)}
+              </p>
+            </Card>
+          </div>
+        </>
+      )}
 
       {/* Transporte — total fijo de la quincena (editable) */}
       <SectionTitle
