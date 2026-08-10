@@ -36,7 +36,7 @@ export default function App() {
             transition={{ duration: 0.18 }}
             className="px-4 pt-safe pb-32"
           >
-            {tab === "inicio" && <Home onAdd={() => setAddOpen(true)} />}
+            {tab === "inicio" && <Home />}
             {tab === "gastos" && <Expenses />}
             {tab === "plan" && <Plan />}
             {tab === "ajustes" && <Settings />}

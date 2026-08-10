@@ -9,20 +9,24 @@ import { Sheet } from "../ui/Sheet";
 import { GoalForm } from "../ui/forms/GoalForm";
 import { DebtForm } from "../ui/forms/DebtForm";
 import { ExtraForm } from "../ui/forms/ExtraForm";
+import { CreditForm } from "../ui/forms/CreditForm";
+import { AmountSheet } from "../ui/AmountSheet";
 import type { Goal } from "../lib/types";
 
 export function Plan() {
   const goals = useStore((s) => s.goals);
   const debts = useStore((s) => s.debts);
+  const cards = useStore((s) => s.creditCards);
   const [goalOpen, setGoalOpen] = useState(false);
   const [debtOpen, setDebtOpen] = useState(false);
   const [extraOpen, setExtraOpen] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
 
   return (
     <div>
       <header className="pt-2 pb-2">
         <h1 className="text-[28px] font-bold">Plan</h1>
-        <p className="text-[14px] text-ink3">Ahorro, extras, metas y deudas</p>
+        <p className="text-[14px] text-ink3">Ahorro, extras, metas, crédito y deudas</p>
       </header>
 
       {/* EXTRAS / DINERO ADICIONAL */}
@@ -40,6 +44,13 @@ export function Plan() {
       <SectionTitle>Reto escalonado</SectionTitle>
       <Challenge />
 
+      {/* CRÉDITO */}
+      <SectionTitle action={<AddBtn onClick={() => setCardOpen(true)} />}>Tarjetas de crédito</SectionTitle>
+      {cards.length === 0 && <Empty text="Agrega una tarjeta con su cupo y lleva cuánto llevas gastado." />}
+      <div className="space-y-3">
+        {cards.map((c) => <CreditCardItem key={c.id} id={c.id} />)}
+      </div>
+
       {/* DEUDAS */}
       <SectionTitle action={<AddBtn onClick={() => setDebtOpen(true)} />}>Deudas</SectionTitle>
       {debts.length === 0 && <Empty text="Agrega una deuda y lleva el conteo de cuántas cuotas te faltan." />}
@@ -56,7 +67,88 @@ export function Plan() {
       <Sheet open={extraOpen} onClose={() => setExtraOpen(false)} title="Registrar un extra">
         <ExtraForm onDone={() => setExtraOpen(false)} />
       </Sheet>
+      <Sheet open={cardOpen} onClose={() => setCardOpen(false)} title="Nueva tarjeta de crédito">
+        <CreditForm onDone={() => setCardOpen(false)} />
+      </Sheet>
     </div>
+  );
+}
+
+/* ---------- Tarjeta de crédito: cupo vs. gastado ---------- */
+function CreditCardItem({ id }: { id: string }) {
+  const card = useStore((s) => s.creditCards.find((c) => c.id === id));
+  const charge = useStore((s) => s.cardCharge);
+  const pay = useStore((s) => s.cardPayment);
+  const remove = useStore((s) => s.removeCard);
+  const [chargeOpen, setChargeOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  if (!card) return null;
+
+  const disponible = Math.max(0, card.limit - card.used);
+  const ratio = card.limit > 0 ? card.used / card.limit : 0;
+  const level = ratio >= 1 ? "danger" : ratio >= 0.8 ? "warn" : "ok";
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="text-2xl">{card.emoji}</span>
+          <div>
+            <p className="font-semibold">{card.name}</p>
+            <p className="text-[12px] text-ink3 tnum">Cupo {money(card.limit)}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-[12px] text-ink3">Disponible</p>
+          <p className={`text-[18px] font-bold tnum ${disponible === 0 ? "text-danger" : "text-accent"}`}>
+            {money(disponible)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex justify-between items-baseline mb-1.5">
+        <span className="text-[13px] text-ink3">Gastado</span>
+        <span className={`text-[13px] tnum ${level === "danger" ? "text-danger" : level === "warn" ? "text-amber" : "text-ink"}`}>
+          {money(card.used)} · {Math.round(ratio * 100)}%
+        </span>
+      </div>
+      <ProgressBar ratio={ratio} level={level} />
+
+      <div className="mt-3 flex gap-2">
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setChargeOpen(true)}
+          className="flex-1 py-2.5 rounded-xl bg-card2 font-semibold text-[14px]"
+        >
+          + Consumo
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setPayOpen(true)}
+          className="flex-1 py-2.5 rounded-xl bg-accent/12 text-accent font-semibold text-[14px]"
+        >
+          Registrar pago
+        </motion.button>
+        <button onClick={() => remove(card.id)} className="px-3 rounded-xl text-ink3 text-[13px]">
+          Borrar
+        </button>
+      </div>
+
+      <AmountSheet
+        open={chargeOpen}
+        onClose={() => setChargeOpen(false)}
+        title={`Consumo · ${card.name}`}
+        cta="Sumar"
+        onConfirm={(amt) => charge(card.id, amt)}
+      />
+      <AmountSheet
+        open={payOpen}
+        onClose={() => setPayOpen(false)}
+        title={`Pago · ${card.name}`}
+        cta="Pagar"
+        onConfirm={(amt) => pay(card.id, amt)}
+      />
+    </Card>
   );
 }
 

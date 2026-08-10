@@ -5,6 +5,7 @@ import { periodNow } from "../lib/periods";
 import type {
   Category,
   CategoryId,
+  CreditCard,
   Debt,
   Expense,
   Extra,
@@ -23,7 +24,6 @@ interface Store extends AppData {
   // Gastos
   addExpense: (e: Omit<Expense, "id">) => void;
   removeExpense: (id: string) => void;
-  addBusRide: () => void; // atajo "Pasaje"
   // Categorías / límites
   setCategoryLimit: (id: CategoryId, limit: number) => void;
   setCategories: (c: Category[]) => void;
@@ -42,6 +42,12 @@ interface Store extends AppData {
   // Extras (ingresos fuera de nómina → van full al ahorro)
   addExtra: (e: Omit<Extra, "id">) => void;
   removeExtra: (id: string) => void;
+  // Tarjetas de crédito (cupo vs. gastado)
+  addCard: (c: Omit<CreditCard, "id" | "history">) => void;
+  updateCard: (id: string, patch: Partial<Pick<CreditCard, "name" | "limit" | "emoji">>) => void;
+  cardCharge: (id: string, amount: number) => void; // registrar consumo
+  cardPayment: (id: string, amount: number) => void; // registrar pago
+  removeCard: (id: string) => void;
   // Reto
   toggleChallengeStep: (index: number) => void;
   setChallenge: (patch: Partial<AppData["challenge"]>) => void;
@@ -70,23 +76,6 @@ export const useStore = create<Store>()(
 
       removeExpense: (id) =>
         set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
-
-      addBusRide: () => {
-        const t = get().transport;
-        set((s) => ({
-          expenses: [
-            {
-              id: uid(),
-              date: ymd(hoy()),
-              amount: t.fare * t.ridesPerDay,
-              category: "transporte",
-              note: `${t.ridesPerDay} pasajes`,
-              source: "bus",
-            },
-            ...s.expenses,
-          ],
-        }));
-      },
 
       setCategoryLimit: (id, limit) =>
         set((s) => ({
@@ -253,6 +242,48 @@ export const useStore = create<Store>()(
           };
         }),
 
+      addCard: (c) =>
+        set((s) => ({
+          creditCards: [
+            ...s.creditCards,
+            { ...c, id: uid(), used: Math.max(0, c.used), history: [] },
+          ],
+        })),
+
+      updateCard: (id, patch) =>
+        set((s) => ({
+          creditCards: s.creditCards.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
+
+      cardCharge: (id, amount) =>
+        set((s) => ({
+          creditCards: s.creditCards.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  used: c.used + Math.max(0, amount),
+                  history: [{ date: ymd(hoy()), amount, type: "consumo" }, ...c.history],
+                }
+              : c,
+          ),
+        })),
+
+      cardPayment: (id, amount) =>
+        set((s) => ({
+          creditCards: s.creditCards.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  used: Math.max(0, c.used - Math.max(0, amount)),
+                  history: [{ date: ymd(hoy()), amount, type: "pago" }, ...c.history],
+                }
+              : c,
+          ),
+        })),
+
+      removeCard: (id) =>
+        set((s) => ({ creditCards: s.creditCards.filter((c) => c.id !== id) })),
+
       toggleChallengeStep: (index) =>
         set((s) => {
           const done = s.challenge.done.includes(index)
@@ -283,6 +314,7 @@ export const useStore = create<Store>()(
           goals: s.goals,
           debts: s.debts,
           extras: s.extras,
+          creditCards: s.creditCards,
           savingsPot: s.savingsPot,
           challenge: s.challenge,
           transport: s.transport,
@@ -302,11 +334,11 @@ export const useStore = create<Store>()(
         }
       },
 
-      resetAll: () => set({ ...seedData(), onboarded: true }),
+      resetAll: () => set({ ...seedData() }),
     }),
     {
-      name: "quincena-v1",
-      version: 1,
+      name: "quincena-v2",
+      version: 2,
     },
   ),
 );

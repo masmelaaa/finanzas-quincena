@@ -3,7 +3,7 @@
 import { addDays, daysBetween, hoy, ymd, type ISODate } from "./dates";
 import type { Period } from "./periods";
 import { periodContains, periodProgress } from "./periods";
-import { transportPlan, transportRemaining, type TransportConfig } from "./transport";
+import { transportPlan, type TransportConfig } from "./transport";
 import type { Debt, Expense, FixedExpense, Goal } from "./types";
 
 export interface BudgetInput {
@@ -19,14 +19,14 @@ export interface BudgetInput {
 
 export interface BudgetResult {
   salary: number;
-  /** Gastos ya registrados en el periodo (incluye buses y cuotas ya pagadas). */
+  /** Gastos registrados en el periodo (sin buses: el transporte se reserva como total fijo). */
   spent: number;
   /** Gastos fijos que aplican al periodo. */
   fixedTotal: number;
-  /** Transporte que aún falta por gastar (reservado). */
-  transportReserved: number;
-  /** Costo total de transporte planeado del periodo. */
-  transportPlanned: number;
+  /** Presupuesto TOTAL de transporte del periodo (se descuenta completo, fijo). */
+  transportTotal: number;
+  /** Número de salidas planeadas del periodo (informativo). */
+  transportTrips: number;
   /** Aporte de metas comprometido este periodo (sugerido, aún no aportado). */
   savingsCommitted: number;
   /** Cuotas de deuda que vencen en el periodo y aún no se han pagado. */
@@ -80,31 +80,28 @@ export function computeBudget(input: BudgetInput): BudgetResult {
   const { period, salary, expenses, fixed, goals, debts, transport } = input;
   const ref = input.ref ?? hoy();
 
+  // El transporte se maneja como un total fijo (abajo). Por eso los gastos de bus
+  // NO cuentan aquí: ya están cubiertos por la reserva de transporte.
   const inPeriod = expenses.filter((e) => periodContains(period, e.date));
-  const spent = inPeriod.reduce((s, e) => s + e.amount, 0);
+  const spent = inPeriod
+    .filter((e) => e.source !== "bus")
+    .reduce((s, e) => s + e.amount, 0);
 
   const fixedTotal = fixed
     .filter((f) => fixedApplies(f, period))
     .reduce((s, f) => s + f.amount, 0);
 
+  // Transporte: se reserva el TOTAL de la quincena, completo y fijo (no decreciente).
   const plan = transportPlan(period, transport);
-  const transportPlanned = plan.totalCost;
-  // Lo ya gastado en buses (source bus) no se reserva de nuevo:
-  const busSpent = inPeriod
-    .filter((e) => e.source === "bus")
-    .reduce((s, e) => s + e.amount, 0);
-  const transportReserved = Math.max(0, transportRemaining(plan, ref).cost);
+  const transportTotal = plan.totalCost;
+  const transportTrips = plan.totalDays;
 
   const savingsCommitted = goals.reduce((s, g) => s + goalPerPeriod(g, ref), 0);
 
   const debtDue = debts.reduce((s, d) => s + debtDueInPeriod(d, period), 0);
 
-  // spent ya incluye busSpent y cuotas pagadas; reservamos solo lo pendiente.
-  // Evitamos doble conteo del transporte: reservado = futuro, spent = pasado.
-  void busSpent;
-
   const available =
-    salary - spent - fixedTotal - transportReserved - savingsCommitted - debtDue;
+    salary - spent - fixedTotal - transportTotal - savingsCommitted - debtDue;
 
   const { remaining } = periodProgress(period, ref);
   const daysLeft = Math.max(1, remaining);
@@ -114,8 +111,8 @@ export function computeBudget(input: BudgetInput): BudgetResult {
     salary,
     spent,
     fixedTotal,
-    transportReserved,
-    transportPlanned,
+    transportTotal,
+    transportTrips,
     savingsCommitted,
     debtDue,
     available,

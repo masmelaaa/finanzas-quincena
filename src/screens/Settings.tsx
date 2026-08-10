@@ -3,6 +3,9 @@ import { useStore } from "../store/useStore";
 import { periodNow, nextPeriod, prevPeriod } from "../lib/periods";
 import { Card, SectionTitle, Segmented, Toggle } from "../ui/primitives";
 import { MoneyInput } from "../ui/forms/fields";
+import { Sheet } from "../ui/Sheet";
+import { FixedForm } from "../ui/forms/FixedForm";
+import { money } from "../lib/money";
 import type { ThemeMode } from "../lib/types";
 
 export function Settings() {
@@ -14,9 +17,12 @@ export function Settings() {
   const setSalary = useStore((s) => s.setSalary);
   const categories = useStore((s) => s.categories);
   const setCategoryLimit = useStore((s) => s.setCategoryLimit);
+  const fixed = useStore((s) => s.fixed);
+  const removeFixed = useStore((s) => s.removeFixed);
   const exportJSON = useStore((s) => s.exportJSON);
   const importJSON = useStore((s) => s.importJSON);
   const resetAll = useStore((s) => s.resetAll);
+  const [fixedOpen, setFixedOpen] = useState(false);
 
   const cur = periodNow();
   const [periodId, setPeriodId] = useState(cur.id);
@@ -96,9 +102,45 @@ export function Settings() {
         </Row>
         <p className="text-[12px] text-ink3">
           Regla: salgo los días impares + sábados, menos festivos. La app calcula el
-          presupuesto de buses de cada quincena.
+          presupuesto de buses de cada quincena y lo descuenta completo.
         </p>
       </Card>
+
+      {/* Gastos fijos */}
+      <SectionTitle
+        action={
+          <button onClick={() => setFixedOpen(true)} className="text-accent text-[15px] font-semibold normal-case tracking-normal">
+            + Agregar
+          </button>
+        }
+      >
+        Gastos fijos
+      </SectionTitle>
+      {fixed.length === 0 ? (
+        <Card className="p-4 text-center">
+          <p className="text-[13px] text-ink3">
+            No tienes gastos fijos. Agrega arriendo, servicios, suscripciones… y se descuentan
+            solos cada quincena.
+          </p>
+        </Card>
+      ) : (
+        <Card className="divide-y hairline">
+          {fixed.map((f) => (
+            <div key={f.id} className="flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="font-medium text-[15px]">{f.name}</p>
+                <p className="text-[12px] text-ink3">
+                  {f.when === "ambas" ? "Cada quincena" : f.when === "primera" ? "Quincena del 5" : "Quincena del 20"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="tnum font-semibold">{money(f.amount)}</span>
+                <button onClick={() => removeFixed(f.id)} className="text-ink3 text-[13px]">✕</button>
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
 
       {/* Límites */}
       <SectionTitle>Límites por categoría (por quincena)</SectionTitle>
@@ -143,7 +185,7 @@ export function Settings() {
         </button>
         <button
           onClick={() => {
-            if (confirm("¿Borrar todos los datos y volver al ejemplo inicial?")) resetAll();
+            if (confirm("¿Borrar todos los datos y empezar desde cero?")) resetAll();
           }}
           className="w-full px-4 py-3.5 text-left text-danger"
         >
@@ -161,6 +203,10 @@ export function Settings() {
       <p className="text-center text-[12px] text-ink3 mt-8 mb-4">
         Todos tus datos viven solo en este dispositivo. Nada se sube a internet.
       </p>
+
+      <Sheet open={fixedOpen} onClose={() => setFixedOpen(false)} title="Nuevo gasto fijo">
+        <FixedForm onDone={() => setFixedOpen(false)} />
+      </Sheet>
     </div>
   );
 }

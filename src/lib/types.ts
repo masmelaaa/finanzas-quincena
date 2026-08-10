@@ -81,6 +81,19 @@ export interface Extra {
   goalId?: string; // meta destino; si falta, va al bote general
 }
 
+/**
+ * Tarjeta de crédito: registra el cupo total y cuánto llevas gastado (saldo usado).
+ * No afecta el "Disponible" en efectivo — es un tracker aparte de tu cupo.
+ */
+export interface CreditCard {
+  id: string;
+  name: string;
+  emoji: string;
+  limit: number; // cupo total
+  used: number; // cuánto has gastado / saldo usado
+  history: { date: ISODate; amount: number; type: "consumo" | "pago" }[];
+}
+
 /** Reto de ahorro escalonado (casillas crecientes). */
 export interface ChallengeState {
   active: boolean;

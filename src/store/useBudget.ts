@@ -4,7 +4,7 @@ import { hoy } from "../lib/dates";
 import { periodNow } from "../lib/periods";
 import { computeBudget, computePace } from "../lib/budget";
 import { buildAlerts, categorySpends } from "../lib/alerts";
-import { transportPlan, transportRemaining } from "../lib/transport";
+import { transportPlan } from "../lib/transport";
 import { useStore } from "./useStore";
 
 export function useBudget() {
@@ -26,11 +26,10 @@ export function useBudget() {
     const pace = computePace(input, budget);
 
     const plan = transportPlan(period, transport);
-    const remaining = transportRemaining(plan, ref);
 
     const catSpends = categorySpends(categories, expenses, period);
     const alerts = buildAlerts(budget, pace, catSpends);
 
-    return { period, salary, budget, pace, plan, remaining, catSpends, alerts };
+    return { period, salary, budget, pace, plan, catSpends, alerts };
   }, [salaries, expenses, fixed, goals, debts, transport, categories]);
 }

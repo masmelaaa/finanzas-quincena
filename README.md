@@ -28,7 +28,10 @@ dispositivo** — nada se sube a internet.
   horas extra) va **100% al ahorro**, dirigido a una meta o al bote general.
 - **Contador de cuotas de deuda** — dices en qué quincena pagas cada deuda (5 o 20) y la
   pantalla principal te muestra la del periodo con el **contador decreciente** de cuotas.
-- **Registro rápido** — teclado numérico grande y atajo de un toque para el pasaje del bus.
+- **Tarjetas de crédito** — registras el cupo y cuánto llevas gastado; ves el cupo disponible
+  con una barra (ámbar/rojo al llenarse) y registras consumos y pagos.
+- **Registro rápido** — teclado numérico grande estilo iOS y categorías por emoji.
+- **Empieza vacía** — la app arranca desde cero; tú registras todos tus datos.
 - **Respaldo** — exporta/importa tus datos en JSON para pasar de un dispositivo a otro.
 
 ## 🧮 El cálculo de transporte (ejemplo real)
