@@ -1,40 +1,78 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Sheet } from "./Sheet";
 import { NumPad } from "./NumPad";
 import { useStore } from "../store/useStore";
 import { money } from "../lib/money";
-import type { CategoryId } from "../lib/types";
+import { hoy, ymd } from "../lib/dates";
+import type { CategoryId, Expense } from "../lib/types";
 
-export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * Sheet para registrar o editar un gasto. Si recibe `expense`, entra en modo edición.
+ * Incluye selector de fecha (para registrar pagos antiguos) y usa fecha LOCAL.
+ */
+export function AddExpenseSheet({
+  open,
+  onClose,
+  expense,
+}: {
+  open: boolean;
+  onClose: () => void;
+  expense?: Expense;
+}) {
   const categories = useStore((s) => s.categories);
   const addExpense = useStore((s) => s.addExpense);
+  const updateExpense = useStore((s) => s.updateExpense);
+  const removeExpense = useStore((s) => s.removeExpense);
+  const editing = !!expense;
 
+  const firstCat = categories[0]?.id ?? "otros";
   const [amount, setAmount] = useState(0);
-  const [cat, setCat] = useState<CategoryId>("comida");
+  const [cat, setCat] = useState<CategoryId>(firstCat);
   const [note, setNote] = useState("");
+  const [date, setDate] = useState(ymd(hoy()));
 
-  const reset = () => {
-    setAmount(0);
-    setNote("");
-    setCat("comida");
-  };
+  // Al abrir, precarga desde el gasto a editar o resetea a valores nuevos.
+  useEffect(() => {
+    if (!open) return;
+    if (expense) {
+      setAmount(expense.amount);
+      setCat(expense.category);
+      setNote(expense.note ?? "");
+      setDate(expense.date);
+    } else {
+      setAmount(0);
+      setCat(firstCat);
+      setNote("");
+      setDate(ymd(hoy()));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, expense]);
 
   const save = () => {
     if (amount <= 0) return;
-    addExpense({
-      date: new Date().toISOString().slice(0, 10),
-      amount,
-      category: cat,
-      note: note.trim() || undefined,
-      source: "manual",
-    });
-    reset();
+    if (editing && expense) {
+      updateExpense(expense.id, { amount, category: cat, note: note.trim() || undefined, date });
+    } else {
+      addExpense({ date, amount, category: cat, note: note.trim() || undefined, source: "manual" });
+    }
     onClose();
   };
 
   return (
-    <Sheet open={open} onClose={() => { reset(); onClose(); }} title="Registrar gasto">
+    <Sheet open={open} onClose={onClose} title={editing ? "Editar gasto" : "Registrar gasto"}>
+      {/* Fecha */}
+      <label className="block mb-3">
+        <span className="text-[13px] text-ink3 font-medium ml-1">Fecha del gasto</span>
+        <input
+          type="date"
+          value={date}
+          max={ymd(hoy())}
+          onChange={(e) => e.target.value && setDate(e.target.value)}
+          className="w-full mt-1 bg-card rounded-2xl px-4 py-3 text-[16px] outline-none tnum"
+        />
+      </label>
+
       {/* Selector de categoría */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
         {categories.map((c) => (
@@ -42,9 +80,7 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
             key={c.id}
             onClick={() => setCat(c.id)}
             className={`shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-2xl border ${
-              cat === c.id
-                ? "border-accent bg-accent/10"
-                : "border-transparent bg-card"
+              cat === c.id ? "border-accent bg-accent/10" : "border-transparent bg-card"
             }`}
           >
             <span className="text-2xl">{c.emoji}</span>
@@ -75,8 +111,20 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
           amount > 0 ? "bg-accent text-white" : "bg-card text-ink3"
         }`}
       >
-        {amount > 0 ? `Guardar ${money(amount)}` : "Ingresa un monto"}
+        {amount > 0 ? (editing ? `Guardar cambios · ${money(amount)}` : `Guardar ${money(amount)}`) : "Ingresa un monto"}
       </motion.button>
+
+      {editing && expense && (
+        <button
+          onClick={() => {
+            removeExpense(expense.id);
+            onClose();
+          }}
+          className="w-full pb-3 text-danger text-[15px] font-medium"
+        >
+          Eliminar gasto
+        </button>
+      )}
     </Sheet>
   );
 }

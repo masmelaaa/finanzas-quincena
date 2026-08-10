@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useStore } from "../store/useStore";
 import { periodNow } from "../lib/periods";
 import { fmtDiaCorto, parseISO, hoy, ymd } from "../lib/dates";
 import { money } from "../lib/money";
 import { Card, SectionTitle, Segmented } from "../ui/primitives";
+import { AddExpenseSheet } from "../ui/AddExpenseSheet";
 import type { CategoryId, Expense } from "../lib/types";
 
 export function Expenses() {
@@ -12,6 +13,7 @@ export function Expenses() {
   const categories = useStore((s) => s.categories);
   const removeExpense = useStore((s) => s.removeExpense);
   const [scope, setScope] = useState<"quincena" | "todo">("quincena");
+  const [editing, setEditing] = useState<Expense | null>(null);
 
   const catMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c])) as Record<CategoryId, (typeof categories)[number]>,
@@ -84,12 +86,24 @@ export function Expenses() {
                   expense={e}
                   cat={catMap[e.category]}
                   onDelete={() => removeExpense(e.id)}
+                  onEdit={() => setEditing(e)}
                 />
               ))}
             </Card>
           </div>
         );
       })}
+
+      <p className="text-center text-[12px] text-ink3 mt-6 mb-2">
+        Toca un gasto para editarlo · desliza para borrar
+      </p>
+
+      {/* Editar gasto */}
+      <AddExpenseSheet
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        expense={editing ?? undefined}
+      />
     </div>
   );
 }
@@ -98,11 +112,14 @@ function ExpenseRow({
   expense,
   cat,
   onDelete,
+  onEdit,
 }: {
   expense: Expense;
   cat: { emoji: string; name: string };
   onDelete: () => void;
+  onEdit: () => void;
 }) {
+  const draggedRef = useRef(false);
   return (
     <div className="relative overflow-hidden">
       {/* fondo de eliminar */}
@@ -113,10 +130,16 @@ function ExpenseRow({
         drag="x"
         dragConstraints={{ left: -96, right: 0 }}
         dragElastic={{ left: 0.1, right: 0 }}
+        onDragStart={() => (draggedRef.current = true)}
         onDragEnd={(_, info) => {
           if (info.offset.x < -70) onDelete();
+          // permite que el click posterior sepa que hubo arrastre
+          setTimeout(() => (draggedRef.current = false), 50);
         }}
-        className="relative bg-card flex items-center gap-3 px-4 py-3"
+        onClick={() => {
+          if (!draggedRef.current) onEdit();
+        }}
+        className="relative bg-card flex items-center gap-3 px-4 py-3 cursor-pointer"
       >
         <span className="text-2xl">{cat?.emoji ?? "✨"}</span>
         <div className="flex-1 min-w-0">

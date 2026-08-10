@@ -5,8 +5,9 @@ import { Card, SectionTitle, Segmented, Toggle } from "../ui/primitives";
 import { MoneyInput } from "../ui/forms/fields";
 import { Sheet } from "../ui/Sheet";
 import { FixedForm } from "../ui/forms/FixedForm";
+import { CategoryForm } from "../ui/forms/CategoryForm";
 import { money } from "../lib/money";
-import type { ThemeMode } from "../lib/types";
+import type { Category, ThemeMode } from "../lib/types";
 
 export function Settings() {
   const theme = useStore((s) => s.theme);
@@ -16,13 +17,15 @@ export function Settings() {
   const salaries = useStore((s) => s.salaries);
   const setSalary = useStore((s) => s.setSalary);
   const categories = useStore((s) => s.categories);
-  const setCategoryLimit = useStore((s) => s.setCategoryLimit);
+  const removeCategory = useStore((s) => s.removeCategory);
   const fixed = useStore((s) => s.fixed);
   const removeFixed = useStore((s) => s.removeFixed);
   const exportJSON = useStore((s) => s.exportJSON);
   const importJSON = useStore((s) => s.importJSON);
   const resetAll = useStore((s) => s.resetAll);
   const [fixedOpen, setFixedOpen] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
+  const [editCat, setEditCat] = useState<Category | null>(null);
 
   const cur = periodNow();
   const [periodId, setPeriodId] = useState(cur.id);
@@ -142,21 +145,56 @@ export function Settings() {
         </Card>
       )}
 
-      {/* Límites */}
-      <SectionTitle>Límites por categoría (por quincena)</SectionTitle>
-      <Card className="p-4 space-y-3">
+      {/* Categorías */}
+      <SectionTitle
+        action={
+          <button
+            onClick={() => { setEditCat(null); setCatOpen(true); }}
+            className="text-accent text-[15px] font-semibold normal-case tracking-normal"
+          >
+            + Agregar
+          </button>
+        }
+      >
+        Categorías
+      </SectionTitle>
+      <Card className="divide-y hairline">
         {categories.map((c) => (
-          <Row key={c.id} label={`${c.emoji} ${c.name}`}>
-            <div className="w-32">
-              <MoneyInput
-                value={c.limit}
-                onChange={(v) => setCategoryLimit(c.id, v)}
-                placeholder="Sin límite"
-              />
-            </div>
-          </Row>
+          <div key={c.id} className="flex items-center gap-3 px-4 py-3">
+            <button
+              onClick={() => { setEditCat(c); setCatOpen(true); }}
+              className="flex items-center gap-3 flex-1 min-w-0 text-left"
+            >
+              <span className="text-2xl">{c.emoji}</span>
+              <div className="min-w-0">
+                <p className="font-medium text-[15px] truncate">{c.name}</p>
+                <p className="text-[12px] text-ink3 tnum">
+                  {c.limit > 0 ? `Límite ${money(c.limit)}/quincena` : "Sin límite"}
+                </p>
+              </div>
+            </button>
+            <button
+              onClick={() => { setEditCat(c); setCatOpen(true); }}
+              className="text-accent text-[13px] font-medium px-1"
+            >
+              Editar
+            </button>
+            {categories.length > 1 && (
+              <button
+                onClick={() => {
+                  if (confirm(`¿Borrar la categoría "${c.name}"? Sus gastos pasarán a otra categoría.`)) removeCategory(c.id);
+                }}
+                className="text-ink3 text-[13px] px-1"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         ))}
       </Card>
+      <p className="text-center text-[12px] text-ink3 mt-2 px-4">
+        Toca una categoría para cambiar su emoji, nombre o límite por quincena.
+      </p>
 
       {/* Apariencia */}
       <SectionTitle>Apariencia</SectionTitle>
@@ -206,6 +244,13 @@ export function Settings() {
 
       <Sheet open={fixedOpen} onClose={() => setFixedOpen(false)} title="Nuevo gasto fijo">
         <FixedForm onDone={() => setFixedOpen(false)} />
+      </Sheet>
+      <Sheet
+        open={catOpen}
+        onClose={() => setCatOpen(false)}
+        title={editCat ? "Editar categoría" : "Nueva categoría"}
+      >
+        <CategoryForm category={editCat ?? undefined} onDone={() => setCatOpen(false)} />
       </Sheet>
     </div>
   );

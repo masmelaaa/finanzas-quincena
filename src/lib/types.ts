@@ -1,15 +1,9 @@
 // Tipos del dominio de la app.
 import type { ISODate } from "./dates";
 
-export type CategoryId =
-  | "comida"
-  | "transporte"
-  | "ocio"
-  | "mercado"
-  | "servicios"
-  | "salud"
-  | "deudas"
-  | "otros";
+// Las categorías son editables por el usuario, así que el id es un string libre.
+// Las de fábrica usan ids legibles ("comida", "transporte"…); las nuevas, un id generado.
+export type CategoryId = string;
 
 export interface Category {
   id: CategoryId;
@@ -17,7 +11,6 @@ export interface Category {
   emoji: string;
   /** Límite por quincena (0 = sin límite). */
   limit: number;
-  /** Es un gasto fijo/recurrente que se reserva del disponible. */
 }
 
 export interface Expense {

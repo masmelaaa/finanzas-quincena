@@ -2,6 +2,7 @@
 // Lo único precargado son las categorías (la taxonomía) sin límites, y la config
 // de transporte por defecto (que igual se confirma en el onboarding).
 
+import { hoy, ymd } from "../lib/dates";
 import { DEFAULT_TRANSPORT } from "../lib/transport";
 import type {
   Category,
@@ -54,7 +55,7 @@ const emptyChallenge: ChallengeState = {
   stepAmount: 5_000,
   totalSteps: 20,
   done: [],
-  startedAt: new Date().toISOString().slice(0, 10),
+  startedAt: ymd(hoy()),
 };
 
 export function seedData(): AppData {

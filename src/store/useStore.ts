@@ -23,10 +23,14 @@ interface Store extends AppData {
   setSalary: (periodId: string, amount: number) => void;
   // Gastos
   addExpense: (e: Omit<Expense, "id">) => void;
+  updateExpense: (id: string, patch: Partial<Omit<Expense, "id">>) => void;
   removeExpense: (id: string) => void;
   // Categorías / límites
   setCategoryLimit: (id: CategoryId, limit: number) => void;
   setCategories: (c: Category[]) => void;
+  addCategory: (c: Omit<Category, "id">) => void;
+  updateCategory: (id: CategoryId, patch: Partial<Omit<Category, "id">>) => void;
+  removeCategory: (id: CategoryId) => void;
   // Fijos
   addFixed: (f: Omit<FixedExpense, "id">) => void;
   removeFixed: (id: string) => void;
@@ -76,6 +80,11 @@ export const useStore = create<Store>()(
       addExpense: (e) =>
         set((s) => ({ expenses: [{ ...e, id: uid() }, ...s.expenses] })),
 
+      updateExpense: (id, patch) =>
+        set((s) => ({
+          expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+        })),
+
       removeExpense: (id) =>
         set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
 
@@ -87,6 +96,28 @@ export const useStore = create<Store>()(
         })),
 
       setCategories: (categories) => set({ categories }),
+
+      addCategory: (c) =>
+        set((s) => ({
+          categories: [...s.categories, { ...c, id: uid(), limit: Math.max(0, c.limit) }],
+        })),
+
+      updateCategory: (id, patch) =>
+        set((s) => ({
+          categories: s.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
+
+      removeCategory: (id) =>
+        set((s) => {
+          if (s.categories.length <= 1) return s; // siempre queda al menos una
+          const fallback = s.categories.find((c) => c.id !== id)?.id ?? id;
+          return {
+            categories: s.categories.filter((c) => c.id !== id),
+            // reasigna los gastos y fijos de esa categoría a la primera disponible
+            expenses: s.expenses.map((e) => (e.category === id ? { ...e, category: fallback } : e)),
+            fixed: s.fixed.map((f) => (f.category === id ? { ...f, category: fallback } : f)),
+          };
+        }),
 
       addFixed: (f) => set((s) => ({ fixed: [...s.fixed, { ...f, id: uid() }] })),
       removeFixed: (id) => set((s) => ({ fixed: s.fixed.filter((f) => f.id !== id) })),
