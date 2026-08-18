@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { TabBar, type TabId } from "./ui/TabBar";
 import { AddExpenseSheet } from "./ui/AddExpenseSheet";
+import { UpdateBanner } from "./ui/UpdateBanner";
 import { useStore } from "./store/useStore";
 import { Home } from "./screens/Home";
 import { Expenses } from "./screens/Expenses";
@@ -21,6 +22,13 @@ export default function App() {
     if (theme === "auto") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", theme);
   }, [theme]);
+
+  // Al cambiar de pestaña, vuelve arriba. Sin esto, si scrolleaste mucho en una
+  // pestaña larga (ej. Ajustes) y cambias a una más corta, la nueva pestaña puede
+  // quedar completamente fuera de vista — se ve como si la app se hubiera colgado.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [tab]);
 
   if (!onboarded) return <Onboarding />;
 
@@ -46,6 +54,7 @@ export default function App() {
 
       <TabBar active={tab} onChange={setTab} onAdd={() => setAddOpen(true)} />
       <AddExpenseSheet open={addOpen} onClose={() => setAddOpen(false)} />
+      <UpdateBanner />
     </div>
   );
 }

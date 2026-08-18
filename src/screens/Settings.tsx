@@ -1,14 +1,16 @@
 import { useRef, useState } from "react";
 import { Reorder, useDragControls } from "framer-motion";
 import { useStore } from "../store/useStore";
-import { periodNow, nextPeriod, prevPeriod } from "../lib/periods";
+import { periodNow, nextPeriod, prevPeriod, scheduleDescription } from "../lib/periods";
+import { debtPeriodLabel } from "../lib/budget";
 import { Card, SectionTitle, Segmented, Toggle } from "../ui/primitives";
-import { MoneyInput } from "../ui/forms/fields";
+import { MoneyInput, NumberInput } from "../ui/forms/fields";
 import { Sheet } from "../ui/Sheet";
 import { FixedForm } from "../ui/forms/FixedForm";
 import { CategoryForm } from "../ui/forms/CategoryForm";
 import { money } from "../lib/money";
-import type { Category, ThemeMode } from "../lib/types";
+import { TRANSPORT_MODES, type TransportMode } from "../lib/transport";
+import type { Category, PaySchedule, ThemeMode } from "../lib/types";
 
 export function Settings() {
   const theme = useStore((s) => s.theme);
@@ -19,6 +21,8 @@ export function Settings() {
   const setSalary = useStore((s) => s.setSalary);
   const salaryCash = useStore((s) => s.salaryCash);
   const setSalaryCash = useStore((s) => s.setSalaryCash);
+  const paySchedule = useStore((s) => s.paySchedule);
+  const setPaySchedule = useStore((s) => s.setPaySchedule);
   const categories = useStore((s) => s.categories);
   const setCategories = useStore((s) => s.setCategories);
   const removeCategory = useStore((s) => s.removeCategory);
@@ -31,14 +35,11 @@ export function Settings() {
   const [catOpen, setCatOpen] = useState(false);
   const [editCat, setEditCat] = useState<Category | null>(null);
 
-  const cur = periodNow();
+  const cur = periodNow(paySchedule);
   const [periodId, setPeriodId] = useState(cur.id);
-  const period =
-    periodId === cur.id
-      ? cur
-      : periodId === nextPeriod(cur).id
-        ? nextPeriod(cur)
-        : prevPeriod(cur);
+  const nextP = nextPeriod(cur, paySchedule);
+  const prevP = prevPeriod(cur, paySchedule);
+  const period = periodId === cur.id ? cur : periodId === nextP.id ? nextP : prevP;
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -67,16 +68,20 @@ export function Settings() {
         <h1 className="text-[28px] font-bold">Ajustes</h1>
       </header>
 
+      {/* Días de pago */}
+      <SectionTitle>Días de pago</SectionTitle>
+      <PayScheduleEditor schedule={paySchedule} onChange={setPaySchedule} />
+
       {/* Sueldo */}
-      <SectionTitle>Sueldo por quincena</SectionTitle>
+      <SectionTitle>Sueldo por periodo</SectionTitle>
       <Card className="p-4">
         <Segmented
           value={periodId}
           onChange={setPeriodId}
           options={[
-            { value: prevPeriod(cur).id, label: "Anterior" },
+            { value: prevP.id, label: "Anterior" },
             { value: cur.id, label: "Actual" },
-            { value: nextPeriod(cur).id, label: "Siguiente" },
+            { value: nextP.id, label: "Siguiente" },
           ]}
         />
         <p className="text-[13px] text-ink3 mt-3 mb-1 ml-1">{period.label}</p>
@@ -96,28 +101,63 @@ export function Settings() {
       {/* Transporte */}
       <SectionTitle>Transporte</SectionTitle>
       <Card className="p-4 space-y-4">
-        <Row label="Valor del pasaje">
-          <div className="w-36">
-            <MoneyInput value={transport.fare} onChange={(v) => setTransport({ fare: v })} />
-          </div>
-        </Row>
-        <Stepper
-          label="Pasajes entre semana"
-          value={transport.ridesPerDay}
-          onChange={(v) => setTransport({ ridesPerDay: v })}
-        />
-        <Stepper
-          label="Pasajes los sábados"
-          value={transport.ridesPerSaturday}
-          onChange={(v) => setTransport({ ridesPerSaturday: v })}
-        />
-        <Row label="Trabajo domingos impares">
-          <Toggle on={transport.includeSundays} onChange={(v) => setTransport({ includeSundays: v })} />
-        </Row>
-        <p className="text-[12px] text-ink3">
-          Regla: salgo los días impares + sábados, menos festivos. La app calcula el
-          presupuesto de buses de cada quincena y lo descuenta completo.
-        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {(Object.keys(TRANSPORT_MODES) as TransportMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setTransport({ mode: m })}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border text-left ${
+                transport.mode === m ? "border-accent bg-accent/10" : "border-transparent bg-card2"
+              }`}
+            >
+              <span className="text-xl">{TRANSPORT_MODES[m].emoji}</span>
+              <span className="text-[13px] font-medium">{TRANSPORT_MODES[m].label}</span>
+            </button>
+          ))}
+        </div>
+
+        {transport.mode === "propio" ? (
+          <>
+            <Row label="Gasolina por periodo">
+              <div className="w-36">
+                <MoneyInput value={transport.gasolina} onChange={(v) => setTransport({ gasolina: v })} />
+              </div>
+            </Row>
+            <Row label="Parqueaderos por periodo">
+              <div className="w-36">
+                <MoneyInput value={transport.parqueadero} onChange={(v) => setTransport({ parqueadero: v })} />
+              </div>
+            </Row>
+            <p className="text-[12px] text-ink3">
+              Presupuesto fijo por periodo, sin importar cuántos días salgas.
+            </p>
+          </>
+        ) : (
+          <>
+            <Row label={`Valor del ${TRANSPORT_MODES[transport.mode].unit}`}>
+              <div className="w-36">
+                <MoneyInput value={transport.fare} onChange={(v) => setTransport({ fare: v })} />
+              </div>
+            </Row>
+            <Stepper
+              label={`${TRANSPORT_MODES[transport.mode].unit}s entre semana`}
+              value={transport.ridesPerDay}
+              onChange={(v) => setTransport({ ridesPerDay: v })}
+            />
+            <Stepper
+              label={`${TRANSPORT_MODES[transport.mode].unit}s los sábados`}
+              value={transport.ridesPerSaturday}
+              onChange={(v) => setTransport({ ridesPerSaturday: v })}
+            />
+            <Row label="Trabajo domingos impares">
+              <Toggle on={transport.includeSundays} onChange={(v) => setTransport({ includeSundays: v })} />
+            </Row>
+            <p className="text-[12px] text-ink3">
+              Regla: salgo los días impares + sábados, menos festivos. La app calcula el
+              presupuesto de cada periodo y lo descuenta completo.
+            </p>
+          </>
+        )}
       </Card>
 
       {/* Gastos fijos */}
@@ -144,7 +184,7 @@ export function Settings() {
               <div>
                 <p className="font-medium text-[15px]">{f.name}</p>
                 <p className="text-[12px] text-ink3">
-                  {f.when === "ambas" ? "Cada quincena" : f.when === "primera" ? "Quincena del 5" : "Quincena del 20"}
+                  {f.when === "ambas" ? "Cada periodo" : debtPeriodLabel(f.when, paySchedule)}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -326,5 +366,94 @@ function Stepper({
         <button onClick={() => onChange(Math.min(10, value + 1))} className="w-9 h-9 rounded-xl bg-card2 text-[20px]">+</button>
       </div>
     </Row>
+  );
+}
+
+const DIAS_SEMANA = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+function PayScheduleEditor({
+  schedule,
+  onChange,
+}: {
+  schedule: PaySchedule;
+  onChange: (s: PaySchedule) => void;
+}) {
+  return (
+    <Card className="p-4 space-y-4">
+      <Segmented<PaySchedule["kind"]>
+        value={schedule.kind}
+        onChange={(k) => {
+          if (k === "quincenal") onChange({ kind: "quincenal", days: [5, 20] });
+          else if (k === "semanal") onChange({ kind: "semanal", weekday: 5, everyWeeks: 1 });
+          else onChange({ kind: "mensual", day: 30 });
+        }}
+        options={[
+          { value: "quincenal", label: "Quincenal" },
+          { value: "semanal", label: "Semanal" },
+          { value: "mensual", label: "Mensual" },
+        ]}
+      />
+
+      {schedule.kind === "quincenal" && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-[13px] text-ink3 mb-1 ml-1">Primer pago (día)</p>
+            <NumberInput
+              value={schedule.days[0]}
+              onChange={(v) => onChange({ ...schedule, days: [v, schedule.days[1]] })}
+              min={1}
+              max={31}
+            />
+          </div>
+          <div>
+            <p className="text-[13px] text-ink3 mb-1 ml-1">Segundo pago (día)</p>
+            <NumberInput
+              value={schedule.days[1]}
+              onChange={(v) => onChange({ ...schedule, days: [schedule.days[0], v] })}
+              min={1}
+              max={31}
+            />
+          </div>
+        </div>
+      )}
+
+      {schedule.kind === "semanal" && (
+        <>
+          <div>
+            <p className="text-[13px] text-ink3 mb-2 ml-1">Día de pago</p>
+            <div className="flex gap-1.5">
+              {DIAS_SEMANA.map((d, i) => (
+                <button
+                  key={d}
+                  onClick={() => onChange({ ...schedule, weekday: i })}
+                  className={`flex-1 py-2 rounded-xl text-[12px] font-semibold ${
+                    schedule.weekday === i ? "bg-accent text-white" : "bg-card2 text-ink3"
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Segmented<"1" | "2">
+            value={schedule.everyWeeks === 2 ? "2" : "1"}
+            onChange={(v) => onChange({ ...schedule, everyWeeks: v === "2" ? 2 : 1 })}
+            options={[
+              { value: "1", label: "Cada semana" },
+              { value: "2", label: "Cada 2 semanas" },
+            ]}
+          />
+        </>
+      )}
+
+      {schedule.kind === "mensual" && (
+        <div>
+          <p className="text-[13px] text-ink3 mb-1 ml-1">Día del mes</p>
+          <NumberInput value={schedule.day} onChange={(v) => onChange({ ...schedule, day: v })} min={1} max={31} />
+        </div>
+      )}
+
+      <p className="text-[12px] text-ink3">{scheduleDescription(schedule)}</p>
+    </Card>
   );
 }

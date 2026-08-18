@@ -22,7 +22,8 @@ type Dest = { kind: "sueldo" } | { kind: "ahorro" } | { kind: "meta"; goalId: st
 export function ExtraForm({ onDone }: { onDone: () => void }) {
   const goals = useStore((s) => s.goals);
   const addExtra = useStore((s) => s.addExtra);
-  const period = periodNow();
+  const paySchedule = useStore((s) => s.paySchedule);
+  const period = periodNow(paySchedule);
 
   const [amount, setAmount] = useState(0);
   const [concept, setConcept] = useState("Efectivo");

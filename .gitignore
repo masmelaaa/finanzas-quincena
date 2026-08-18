@@ -5,6 +5,10 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+*.tsbuildinfo
+
+# Capacitor (proyecto Android generado)
+android/
 
 # Datos financieros del usuario (nunca se suben — viven en localStorage del navegador)
 # No hay archivos de datos en el repo, pero por si acaso se exporta un backup aquí:

@@ -4,17 +4,21 @@ import { useBudget } from "../store/useBudget";
 import { useStore } from "../store/useStore";
 import { Card, CountUp, ProgressBar, QuincenaRing, SectionTitle } from "../ui/primitives";
 import { money, moneyShort } from "../lib/money";
-import { fmtCorto, hoy, parseISO } from "../lib/dates";
-import { periodProgress, periodTitle } from "../lib/periods";
-import { debtBelongsToPeriod, debtDueInPeriod } from "../lib/budget";
+import { fmtCorto, hoy } from "../lib/dates";
+import { nextPeriod, periodProgress, periodTitle } from "../lib/periods";
+import { debtBelongsToPeriod, debtDueInPeriod, debtPeriodLabel } from "../lib/budget";
+import { TRANSPORT_MODES } from "../lib/transport";
 import { TransportEditSheet } from "../ui/TransportEditSheet";
 
 export function Home() {
   const { period, salary, budget, wallet, catSpends, alerts } = useBudget();
   const debts = useStore((s) => s.debts);
   const transport = useStore((s) => s.transport);
+  const paySchedule = useStore((s) => s.paySchedule);
   const payInstallment = useStore((s) => s.payInstallment);
   const [editTransport, setEditTransport] = useState(false);
+  const modeInfo = TRANSPORT_MODES[transport.mode];
+  const isPropio = transport.mode === "propio";
 
   const prog = periodProgress(period, hoy());
   const timeFraction = prog.fraction;
@@ -40,7 +44,7 @@ export function Home() {
       {/* Header */}
       <header className="flex items-center justify-between pt-2 pb-4">
         <div>
-          <h1 className="text-[22px] font-bold leading-tight">{periodTitle(period)}</h1>
+          <h1 className="text-[22px] font-bold leading-tight">{periodTitle(period, paySchedule)}</h1>
           <p className="text-[13px] text-ink3">{period.label} · {prog.remaining} días restantes</p>
         </div>
         <div className="text-right">
@@ -107,38 +111,46 @@ export function Home() {
         </>
       )}
 
-      {/* Transporte — total fijo de la quincena (editable) */}
+      {/* Transporte — total fijo de la quincena (editable, según el modo) */}
       <SectionTitle
         action={
-          <button
-            onClick={() => setEditTransport(true)}
-            className="text-accent text-[15px] font-semibold normal-case tracking-normal"
-          >
-            Editar
-          </button>
+          !isPropio ? (
+            <button
+              onClick={() => setEditTransport(true)}
+              className="text-accent text-[15px] font-semibold normal-case tracking-normal"
+            >
+              Editar
+            </button>
+          ) : undefined
         }
       >
         Transporte de la quincena
       </SectionTitle>
-      <Card className="p-4" onClick={() => setEditTransport(true)}>
+      <Card className="p-4" onClick={!isPropio ? () => setEditTransport(true) : undefined}>
         <div className="flex items-center gap-3">
-          <span className="text-3xl">🚌</span>
+          <span className="text-3xl">{modeInfo.emoji}</span>
           <div className="flex-1">
             <div className="flex justify-between items-baseline">
               <span className="font-semibold">
-                Total a pagar
+                {isPropio ? modeInfo.label : "Total a pagar"}
                 {budget.transportEdited && (
                   <span className="ml-2 text-[11px] font-medium text-amber align-middle">editado</span>
                 )}
               </span>
               <span className="tnum font-bold text-[18px] text-accent">{money(budget.transportTotal)}</span>
             </div>
-            <p className="text-[13px] text-ink3">
-              {budget.transportRides} pasajes · pasaje {money(transport.fare)}
-              {budget.transportEdited && ` · auto: ${budget.transportAutoRides}`}
-            </p>
+            {isPropio ? (
+              <p className="text-[13px] text-ink3">
+                ⛽ {money(transport.gasolina)} · 🅿️ {money(transport.parqueadero)}
+              </p>
+            ) : (
+              <p className="text-[13px] text-ink3">
+                {budget.transportRides} {modeInfo.unit}s · {modeInfo.unit} {money(transport.fare)}
+                {budget.transportEdited && ` · auto: ${budget.transportAutoRides}`}
+              </p>
+            )}
           </div>
-          <span className="text-ink3 text-[20px]">›</span>
+          {!isPropio && <span className="text-ink3 text-[20px]">›</span>}
         </div>
       </Card>
 
@@ -179,7 +191,7 @@ export function Home() {
                     <div className="flex-1">
                       <p className="font-semibold">{debt.name}</p>
                       <p className="text-[12px] text-ink3">
-                        Cuota {money(debt.installmentValue)} · quincena del {debt.payPeriod === "primera" ? 5 : 20}
+                        Cuota {money(debt.installmentValue)} · {debtPeriodLabel(debt.payPeriod, paySchedule)}
                       </p>
                     </div>
                     <div className="text-right">
@@ -228,25 +240,12 @@ export function Home() {
       )}
 
       <p className="text-center text-[12px] text-ink3 mt-8 mb-2">
-        Próximo pago: {fmtCorto(nextPayday())} · quincena {period.label}
+        Próximo pago: {fmtCorto(nextPeriod(period, paySchedule).start)} · {period.label}
       </p>
 
       <TransportEditSheet open={editTransport} onClose={() => setEditTransport(false)} />
     </div>
   );
-}
-
-/** El siguiente día de pago (5 o 20) a partir de hoy. */
-function nextPayday(): Date {
-  const t = hoy();
-  const y = t.getFullYear();
-  const m = t.getMonth() + 1;
-  const d = t.getDate();
-  if (d < 5) return parseISO(`${y}-${String(m).padStart(2, "0")}-05`);
-  if (d < 20) return parseISO(`${y}-${String(m).padStart(2, "0")}-20`);
-  const nm = m === 12 ? 1 : m + 1;
-  const ny = m === 12 ? y + 1 : y;
-  return parseISO(`${ny}-${String(nm).padStart(2, "0")}-05`);
 }
 
 function Row({ label, value, muted }: { label: string; value: string; muted?: boolean }) {

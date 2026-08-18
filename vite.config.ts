@@ -11,7 +11,9 @@ export default defineConfig(({ command }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: "autoUpdate",
+        // "prompt": nunca recarga la app solo. El usuario decide cuándo actualizar
+        // (evita el "se congela" cuando el SW recarga a mitad de una acción).
+        registerType: "prompt",
         includeAssets: ["favicon.svg", "apple-touch-icon.png"],
         manifest: {
           name: "Quincena · Finanzas",

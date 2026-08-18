@@ -11,6 +11,8 @@ import type {
   Extra,
   FixedExpense,
   Goal,
+  Loan,
+  PaySchedule,
   ThemeMode,
 } from "../lib/types";
 import type { TransportConfig } from "../lib/transport";
@@ -44,6 +46,10 @@ interface Store extends AppData {
   payInstallment: (id: string) => void;
   undoInstallment: (id: string) => void;
   removeDebt: (id: string) => void;
+  // Préstamos que hiciste ("me deben")
+  addLoan: (l: Omit<Loan, "id" | "history" | "paidBack"> & { paidBack?: number }) => void;
+  loanRepayment: (id: string, amount: number) => void; // registrar abono recibido
+  removeLoan: (id: string) => void;
   // Extras (ingresos fuera de nómina → van full al ahorro)
   addExtra: (e: Omit<Extra, "id">) => void;
   removeExtra: (id: string) => void;
@@ -60,6 +66,8 @@ interface Store extends AppData {
   setTransport: (patch: Partial<TransportConfig>) => void;
   setTransportOverride: (periodId: string, rides: number) => void;
   clearTransportOverride: (periodId: string) => void;
+  // Días de pago
+  setPaySchedule: (schedule: PaySchedule) => void;
   // Tema
   setTheme: (t: ThemeMode) => void;
   // Onboarding
@@ -233,6 +241,26 @@ export const useStore = create<Store>()(
 
       removeDebt: (id) => set((s) => ({ debts: s.debts.filter((d) => d.id !== id) })),
 
+      addLoan: (l) =>
+        set((s) => ({
+          loans: [...s.loans, { ...l, id: uid(), paidBack: Math.max(0, l.paidBack ?? 0), history: [] }],
+        })),
+
+      loanRepayment: (id, amount) =>
+        set((s) => ({
+          loans: s.loans.map((l) =>
+            l.id === id
+              ? {
+                  ...l,
+                  paidBack: Math.min(l.amount, l.paidBack + Math.max(0, amount)),
+                  history: [{ date: ymd(hoy()), amount }, ...l.history],
+                }
+              : l,
+          ),
+        })),
+
+      removeLoan: (id) => set((s) => ({ loans: s.loans.filter((l) => l.id !== id) })),
+
       addExtra: (e) =>
         set((s) => {
           const extra: Extra = { ...e, id: uid() };
@@ -369,6 +397,8 @@ export const useStore = create<Store>()(
           return { transportOverrides: next };
         }),
 
+      setPaySchedule: (schedule) => set({ paySchedule: schedule }),
+
       setTheme: (theme) => set({ theme }),
 
       finishOnboarding: () => set({ onboarded: true }),
@@ -385,12 +415,14 @@ export const useStore = create<Store>()(
           fixed: s.fixed,
           goals: s.goals,
           debts: s.debts,
+          loans: s.loans,
           extras: s.extras,
           creditCards: s.creditCards,
           savingsPot: s.savingsPot,
           transportOverrides: s.transportOverrides,
           challenge: s.challenge,
           transport: s.transport,
+          paySchedule: s.paySchedule,
           onboarded: s.onboarded,
         };
         return JSON.stringify(data, null, 2);
@@ -412,11 +444,26 @@ export const useStore = create<Store>()(
     {
       name: "quincena-v2",
       version: 2,
+      // Merge profundo para los campos tipo "diccionario por periodo" (salaries,
+      // salaryCash, transportOverrides): así si el esquema crece con el tiempo,
+      // datos guardados de una versión anterior no pisan los nuevos por defecto.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AppData>;
+        return {
+          ...current,
+          ...p,
+          salaries: { ...current.salaries, ...(p.salaries ?? {}) },
+          salaryCash: { ...current.salaryCash, ...(p.salaryCash ?? {}) },
+          transportOverrides: { ...current.transportOverrides, ...(p.transportOverrides ?? {}) },
+          transport: { ...current.transport, ...(p.transport ?? {}) },
+        };
+      },
     },
   ),
 );
 
 /** Hook de conveniencia: el periodo actual (recalculado en cada render). */
 export function useCurrentPeriod() {
-  return periodNow();
+  const schedule = useStore((s) => s.paySchedule);
+  return periodNow(schedule);
 }

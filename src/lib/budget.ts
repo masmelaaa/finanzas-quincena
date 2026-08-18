@@ -3,8 +3,8 @@
 import { addDays, daysBetween, hoy, ymd, type ISODate } from "./dates";
 import type { Period } from "./periods";
 import { periodContains, periodProgress } from "./periods";
-import { effectiveTransport, type TransportConfig } from "./transport";
-import type { Debt, Expense, FixedExpense, Goal } from "./types";
+import { transportTotalForPeriod, type TransportConfig } from "./transport";
+import type { Debt, Expense, FixedExpense, Goal, PaySchedule } from "./types";
 
 export interface BudgetInput {
   period: Period;
@@ -48,8 +48,8 @@ export interface BudgetResult {
 /** ¿Un gasto fijo aplica a este periodo? */
 function fixedApplies(f: FixedExpense, period: Period): boolean {
   if (f.when === "ambas") return true;
-  if (f.when === "primera") return period.payday === 5;
-  return period.payday === 20;
+  if (f.when === "primera") return period.payIndex === 0;
+  return period.payIndex === 1;
 }
 
 /** Cuota de una meta por quincena para llegar al objetivo antes del deadline. */
@@ -64,10 +64,17 @@ export function goalPerPeriod(goal: Goal, from: Date = hoy()): number {
   return Math.ceil(restante / quincenas);
 }
 
-/** ¿La deuda se paga en este periodo? (según la quincena que el usuario eligió) */
+/** ¿La deuda se paga en este periodo? (según el slot de pago que el usuario eligió) */
 export function debtBelongsToPeriod(debt: Debt, period: Period): boolean {
-  const target = debt.payPeriod === "primera" ? 5 : 20;
-  return period.payday === target;
+  const targetIndex = debt.payPeriod === "primera" ? 0 : 1;
+  return period.payIndex === targetIndex;
+}
+
+/** Texto de a qué periodo corresponde una cuota, según el schedule configurado. */
+export function debtPeriodLabel(payPeriod: Debt["payPeriod"], schedule: PaySchedule): string {
+  if (schedule.kind !== "quincenal") return "cada periodo";
+  const [d0, d1] = [...schedule.days].sort((a, b) => a - b);
+  return `quincena del ${payPeriod === "primera" ? d0 : d1}`;
 }
 
 /** Monto de la cuota que hay que reservar en este periodo (0 si no aplica o ya se pagó). */
@@ -98,12 +105,13 @@ export function computeBudget(input: BudgetInput): BudgetResult {
     .reduce((s, f) => s + f.amount, 0);
 
   // Transporte: se reserva el TOTAL de la quincena, completo y fijo (no decreciente).
-  // Usa el ajuste manual del usuario si editó la cantidad de esta quincena.
-  const et = effectiveTransport(period, transport, input.transportOverride);
-  const transportTotal = et.cost;
-  const transportRides = et.rides;
-  const transportAutoRides = et.autoRides;
-  const transportEdited = et.edited;
+  // Usa el ajuste manual del usuario si editó la cantidad de esta quincena (no aplica
+  // en modo "propio", que es gasolina + parqueadero fijo).
+  const tt = transportTotalForPeriod(period, transport, input.transportOverride);
+  const transportTotal = tt.total;
+  const transportRides = tt.rides;
+  const transportAutoRides = tt.autoRides;
+  const transportEdited = tt.edited;
 
   const savingsCommitted = goals.reduce((s, g) => s + goalPerPeriod(g, ref), 0);
 

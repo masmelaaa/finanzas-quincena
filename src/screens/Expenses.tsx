@@ -11,6 +11,7 @@ import type { CategoryId, Expense } from "../lib/types";
 export function Expenses() {
   const expenses = useStore((s) => s.expenses);
   const categories = useStore((s) => s.categories);
+  const paySchedule = useStore((s) => s.paySchedule);
   const removeExpense = useStore((s) => s.removeExpense);
   const [scope, setScope] = useState<"quincena" | "todo">("quincena");
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -23,7 +24,7 @@ export function Expenses() {
     [categories],
   );
 
-  const period = periodNow();
+  const period = periodNow(paySchedule);
   const filtered = useMemo(() => {
     const list = scope === "quincena"
       ? expenses.filter((e) => e.date >= ymd(period.start) && e.date <= ymd(period.end))

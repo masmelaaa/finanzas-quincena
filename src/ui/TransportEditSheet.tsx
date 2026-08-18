@@ -3,19 +3,21 @@ import { motion } from "framer-motion";
 import { Sheet } from "./Sheet";
 import { useStore } from "../store/useStore";
 import { periodNow } from "../lib/periods";
-import { effectiveTransport } from "../lib/transport";
+import { effectiveTransport, TRANSPORT_MODES } from "../lib/transport";
 import { money } from "../lib/money";
 
-/** Editar la cantidad de pasajes de la quincena actual (por si sobran buses). */
+/** Editar la cantidad de viajes de la quincena actual (por si sobran, se camina, etc). */
 export function TransportEditSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const transport = useStore((s) => s.transport);
   const overrides = useStore((s) => s.transportOverrides);
   const setOverride = useStore((s) => s.setTransportOverride);
   const clearOverride = useStore((s) => s.clearTransportOverride);
+  const paySchedule = useStore((s) => s.paySchedule);
 
-  const period = periodNow();
+  const period = periodNow(paySchedule);
   const et = effectiveTransport(period, transport, overrides[period.id]);
   const [rides, setRides] = useState(et.rides);
+  const unit = TRANSPORT_MODES[transport.mode].unit || "viaje";
 
   // Al abrir, arranca en el valor actual.
   useEffect(() => {
@@ -33,10 +35,10 @@ export function TransportEditSheet({ open, onClose }: { open: boolean; onClose: 
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Ajustar pasajes de la quincena">
+    <Sheet open={open} onClose={onClose} title={`Ajustar ${unit}s de la quincena`}>
       <p className="text-[14px] text-ink3 mb-4">
-        Si te sobraron buses, caminaste o tomaste otro transporte, baja la cantidad de
-        pasajes de esta quincena ({period.label}).
+        Si te sobraron, caminaste o tomaste otro transporte, baja la cantidad de {unit}s de
+        esta quincena ({period.label}).
       </p>
 
       {/* Contador grande */}
@@ -51,7 +53,7 @@ export function TransportEditSheet({ open, onClose }: { open: boolean; onClose: 
           </motion.button>
           <div className="text-center min-w-[110px]">
             <p className="text-[44px] font-bold tnum leading-none">{rides}</p>
-            <p className="text-[12px] text-ink3 uppercase tracking-wide mt-1">pasajes</p>
+            <p className="text-[12px] text-ink3 uppercase tracking-wide mt-1">{unit}s</p>
           </div>
           <motion.button
             whileTap={{ scale: 0.9 }}
@@ -73,7 +75,7 @@ export function TransportEditSheet({ open, onClose }: { open: boolean; onClose: 
       {/* Referencia automática */}
       <div className="flex items-center justify-between px-1 mb-4 text-[13px]">
         <span className="text-ink3">
-          Cálculo automático: {et.autoRides} pasajes ({money(et.autoRides * transport.fare)})
+          Cálculo automático: {et.autoRides} {unit}s ({money(et.autoRides * transport.fare)})
         </span>
         {rides !== et.autoRides && (
           <button onClick={() => setRides(et.autoRides)} className="text-accent font-semibold">
@@ -87,7 +89,7 @@ export function TransportEditSheet({ open, onClose }: { open: boolean; onClose: 
         onClick={save}
         className="w-full py-4 rounded-2xl bg-accent text-white font-semibold text-[17px]"
       >
-        Guardar {rides} pasajes
+        Guardar {rides} {unit}s
       </motion.button>
       {overrides[period.id] != null && (
         <button onClick={reset} className="w-full py-3 text-ink3 text-[14px]">

@@ -30,7 +30,7 @@ describe("Festivos de Colombia", () => {
 describe("Periodos (pago 5 y 20)", () => {
   it("9 ago 2026 → periodo 5–19 ago", () => {
     const p = periodFor(dateAt(2026, 8, 9));
-    expect(p.payday).toBe(5);
+    expect(p.payIndex).toBe(0);
     expect(p.start.getDate()).toBe(5);
     expect(p.end.getDate()).toBe(19);
     expect(periodLength(p)).toBe(15);
@@ -38,7 +38,7 @@ describe("Periodos (pago 5 y 20)", () => {
 
   it("20 ago 2026 → periodo 20 ago – 4 sep (cruza mes)", () => {
     const p = periodFor(dateAt(2026, 8, 20));
-    expect(p.payday).toBe(20);
+    expect(p.payIndex).toBe(1);
     expect([p.start.getMonth() + 1, p.start.getDate()]).toEqual([8, 20]);
     expect([p.end.getMonth() + 1, p.end.getDate()]).toEqual([9, 4]);
   });
@@ -50,6 +50,30 @@ describe("Periodos (pago 5 y 20)", () => {
     expect([p.end.getFullYear(), p.end.getMonth() + 1, p.end.getDate()]).toEqual([
       2027, 1, 4,
     ]);
+  });
+
+  it("el id del periodo quincenal por defecto preserva el formato original AAAA-MM-A/B", () => {
+    const a = periodFor(dateAt(2026, 8, 9));
+    const b = periodFor(dateAt(2026, 8, 20));
+    expect(a.id).toBe("2026-08-A");
+    expect(b.id).toBe("2026-08-B");
+  });
+});
+
+describe("Periodos — otros schedules (semanal, mensual)", () => {
+  it("semanal cada viernes: 9 ago 2026 (domingo) cae en la semana que empezó el viernes 7", () => {
+    const schedule = { kind: "semanal" as const, weekday: 5, everyWeeks: 1 as const }; // 5 = viernes
+    const p = periodFor(dateAt(2026, 8, 9), schedule);
+    expect([p.start.getMonth() + 1, p.start.getDate()]).toEqual([8, 7]);
+    expect([p.end.getMonth() + 1, p.end.getDate()]).toEqual([8, 13]);
+  });
+
+  it("mensual el día 30: en febrero se ajusta al último día del mes", () => {
+    const schedule = { kind: "mensual" as const, day: 30 };
+    const p = periodFor(dateAt(2026, 2, 15), schedule);
+    // el pago de enero cae el 30, y como febrero 2026 solo tiene 28 días,
+    // el periodo va del 30 de enero al 27 de febrero (día antes del ajustado a 28).
+    expect([p.start.getMonth() + 1, p.start.getDate()]).toEqual([1, 30]);
   });
 });
 

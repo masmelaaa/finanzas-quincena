@@ -1,23 +1,39 @@
-// Presupuesto de transporte (buses) por periodo.
-// Regla del usuario: sale los DÍAS IMPARES + SÁBADOS, menos festivos.
-// Cada salida son N pasajes (2 por defecto: ida y vuelta) a $3.550 c/u.
+// Presupuesto de transporte por periodo.
+// Modos bus/moto/uber: sale los DÍAS IMPARES + SÁBADOS, menos festivos, y cada
+// salida son N viajes a una tarifa fija (por defecto bus $3.550, ida y vuelta).
+// Modo "propio": presupuesto fijo de gasolina + parqueadero, no depende de días.
 
 import { addDays, hoy, ymd, type ISODate } from "./dates";
 import { holidayName, isHoliday } from "./holidays";
 import type { Period } from "./periods";
 
+export type TransportMode = "bus" | "moto" | "uber" | "propio";
+
+export const TRANSPORT_MODES: Record<TransportMode, { label: string; emoji: string; unit: string }> = {
+  bus: { label: "Bus", emoji: "🚌", unit: "pasaje" },
+  moto: { label: "Moto", emoji: "🏍️", unit: "viaje" },
+  uber: { label: "Uber / taxi", emoji: "🚕", unit: "viaje" },
+  propio: { label: "Vehículo propio", emoji: "🚗", unit: "" },
+};
+
 export interface TransportConfig {
-  fare: number; // valor del pasaje
-  ridesPerDay: number; // pasajes por salida (ida y vuelta = 2)
-  ridesPerSaturday: number; // pasajes los sábados (puede diferir)
+  mode: TransportMode;
+  fare: number; // tarifa por viaje (bus/moto/uber)
+  ridesPerDay: number; // viajes por salida (ida y vuelta = 2)
+  ridesPerSaturday: number; // viajes los sábados (puede diferir)
   includeSundays: boolean; // ¿cuenta los domingos impares como salida?
+  gasolina: number; // solo modo "propio": presupuesto de gasolina por quincena
+  parqueadero: number; // solo modo "propio": presupuesto de parqueaderos por quincena
 }
 
 export const DEFAULT_TRANSPORT: TransportConfig = {
+  mode: "bus",
   fare: 3550,
   ridesPerDay: 2,
   ridesPerSaturday: 2,
   includeSundays: false,
+  gasolina: 0,
+  parqueadero: 0,
 };
 
 export interface TransportDay {
@@ -105,6 +121,39 @@ export function effectiveTransport(
   const edited = overrideRides != null && overrideRides !== autoRides;
   const rides = overrideRides != null ? Math.max(0, overrideRides) : autoRides;
   return { plan, autoRides, rides, cost: rides * cfg.fare, edited };
+}
+
+export interface TransportTotal {
+  mode: TransportMode;
+  total: number; // lo que se descuenta del Disponible, fijo para toda la quincena
+  rides: number; // viajes efectivos (0 en modo propio)
+  autoRides: number; // viajes que calcula la regla (0 en modo propio)
+  edited: boolean; // true si el usuario ajustó la cantidad de viajes (no aplica a "propio")
+  plan: TransportPlan | null; // detalle día a día (null en modo "propio")
+}
+
+/**
+ * Total de transporte de la quincena, sea cual sea el modo:
+ * - bus/moto/uber: viajes (auto o editados) × tarifa.
+ * - propio: gasolina + parqueadero, fijo, sin depender de los días del periodo.
+ */
+export function transportTotalForPeriod(
+  period: Period,
+  cfg: TransportConfig,
+  overrideRides?: number,
+): TransportTotal {
+  if (cfg.mode === "propio") {
+    return {
+      mode: "propio",
+      total: Math.max(0, cfg.gasolina) + Math.max(0, cfg.parqueadero),
+      rides: 0,
+      autoRides: 0,
+      edited: false,
+      plan: null,
+    };
+  }
+  const et = effectiveTransport(period, cfg, overrideRides);
+  return { mode: cfg.mode, total: et.cost, rides: et.rides, autoRides: et.autoRides, edited: et.edited, plan: et.plan };
 }
 
 /**

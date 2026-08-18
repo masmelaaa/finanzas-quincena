@@ -6,12 +6,15 @@ import { money } from "../../lib/money";
 
 export function DebtForm({ onDone }: { onDone: () => void }) {
   const addDebt = useStore((s) => s.addDebt);
+  const paySchedule = useStore((s) => s.paySchedule);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🏦");
   const [installmentValue, setValue] = useState(0);
   const [totalInstallments, setTotal] = useState(12);
   const [paidInstallments, setPaid] = useState(0);
   const [payPeriod, setPayPeriod] = useState<"primera" | "segunda">("primera");
+  const isQuincenal = paySchedule.kind === "quincenal";
+  const [d0, d1] = isQuincenal ? [...paySchedule.days].sort((a, b) => a - b) : [0, 0];
 
   const saldo = Math.max(0, (totalInstallments - paidInstallments) * installmentValue);
 
@@ -39,16 +42,18 @@ export function DebtForm({ onDone }: { onDone: () => void }) {
       <Field label="Valor de cada cuota">
         <MoneyInput value={installmentValue} onChange={setValue} />
       </Field>
-      <Field label="¿En qué quincena la pagas?">
-        <Segmented
-          value={payPeriod}
-          onChange={setPayPeriod}
-          options={[
-            { value: "primera", label: "Pago del 5" },
-            { value: "segunda", label: "Pago del 20" },
-          ]}
-        />
-      </Field>
+      {isQuincenal && (
+        <Field label="¿En qué quincena la pagas?">
+          <Segmented
+            value={payPeriod}
+            onChange={setPayPeriod}
+            options={[
+              { value: "primera", label: `Pago del ${d0}` },
+              { value: "segunda", label: `Pago del ${d1}` },
+            ]}
+          />
+        </Field>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cuotas totales">
           <NumberInput value={totalInstallments} onChange={setTotal} min={1} max={120} />

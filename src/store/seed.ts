@@ -3,6 +3,7 @@
 // de transporte por defecto (que igual se confirma en el onboarding).
 
 import { hoy, ymd } from "../lib/dates";
+import { DEFAULT_SCHEDULE } from "../lib/periods";
 import { DEFAULT_TRANSPORT } from "../lib/transport";
 import type {
   Category,
@@ -13,6 +14,8 @@ import type {
   Extra,
   FixedExpense,
   Goal,
+  Loan,
+  PaySchedule,
   Salaries,
   ThemeMode,
 } from "../lib/types";
@@ -39,6 +42,8 @@ export interface AppData {
   fixed: FixedExpense[];
   goals: Goal[];
   debts: Debt[];
+  /** Plata que le prestaste a alguien y te deben devolver. */
+  loans: Loan[];
   extras: Extra[];
   creditCards: CreditCard[];
   /** Bote general de ahorro: extras que no se dirigieron a una meta puntual. */
@@ -47,6 +52,8 @@ export interface AppData {
   transportOverrides: Record<string, number>;
   challenge: ChallengeState;
   transport: typeof DEFAULT_TRANSPORT;
+  /** Cómo y cuándo te pagan (quincenal/semanal/mensual). */
+  paySchedule: PaySchedule;
   onboarded: boolean;
 }
 
@@ -71,12 +78,14 @@ export function seedData(): AppData {
     fixed: [],
     goals: [],
     debts: [],
+    loans: [],
     extras: [],
     creditCards: [],
     savingsPot: 0,
     transportOverrides: {},
     challenge: emptyChallenge,
     transport: { ...DEFAULT_TRANSPORT },
+    paySchedule: { ...DEFAULT_SCHEDULE },
     onboarded: false,
   };
 }

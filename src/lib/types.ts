@@ -13,6 +13,12 @@ export interface Category {
   limit: number;
 }
 
+/** Cómo y cuándo te pagan. */
+export type PaySchedule =
+  | { kind: "quincenal"; days: [number, number] } // dos días del mes, ej. [5, 20]
+  | { kind: "semanal"; weekday: number; everyWeeks: 1 | 2; anchor?: ISODate } // 0=domingo..6=sábado
+  | { kind: "mensual"; day: number }; // día del mes (se ajusta si el mes es más corto)
+
 /** Forma de pago / ubicación del dinero. */
 export type PayMethod = "digital" | "efectivo";
 
@@ -60,9 +66,22 @@ export interface Debt {
   installmentValue: number; // valor de cada cuota
   totalInstallments: number;
   paidInstallments: number;
-  /** En qué quincena se paga esta cuota: "primera" (pago del 5) o "segunda" (pago del 20). */
+  /** En qué slot de pago cae esta cuota: "primera" o "segunda" (solo aplica con pago quincenal). */
   payPeriod: "primera" | "segunda";
   history: { date: ISODate; amount: number }[];
+}
+
+/** Plata que le prestaste a alguien y te deben devolver ("me deben"). */
+export interface Loan {
+  id: string;
+  person: string; // a quién le prestaste
+  emoji: string;
+  amount: number; // monto total prestado
+  paidBack: number; // cuánto te han devuelto
+  date: ISODate;
+  note?: string;
+  dueDate?: ISODate;
+  history: { date: ISODate; amount: number }[]; // abonos recibidos
 }
 
 /**

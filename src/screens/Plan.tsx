@@ -3,24 +3,28 @@ import { motion } from "framer-motion";
 import { useStore } from "../store/useStore";
 import { Card, ProgressBar, SectionTitle } from "../ui/primitives";
 import { money, moneyShort } from "../lib/money";
-import { goalPerPeriod } from "../lib/budget";
+import { goalPerPeriod, debtPeriodLabel } from "../lib/budget";
 import { fmtCorto, parseISO } from "../lib/dates";
 import { Sheet } from "../ui/Sheet";
 import { GoalForm } from "../ui/forms/GoalForm";
 import { DebtForm } from "../ui/forms/DebtForm";
 import { ExtraForm } from "../ui/forms/ExtraForm";
 import { CreditForm } from "../ui/forms/CreditForm";
+import { LoanForm } from "../ui/forms/LoanForm";
 import { AmountSheet } from "../ui/AmountSheet";
-import type { Goal } from "../lib/types";
+import type { Goal, PaySchedule } from "../lib/types";
 
 export function Plan() {
   const goals = useStore((s) => s.goals);
   const debts = useStore((s) => s.debts);
+  const loans = useStore((s) => s.loans);
   const cards = useStore((s) => s.creditCards);
+  const paySchedule = useStore((s) => s.paySchedule);
   const [goalOpen, setGoalOpen] = useState(false);
   const [debtOpen, setDebtOpen] = useState(false);
   const [extraOpen, setExtraOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
+  const [loanOpen, setLoanOpen] = useState(false);
 
   return (
     <div>
@@ -55,7 +59,14 @@ export function Plan() {
       <SectionTitle action={<AddBtn onClick={() => setDebtOpen(true)} />}>Deudas</SectionTitle>
       {debts.length === 0 && <Empty text="Agrega una deuda y lleva el conteo de cuántas cuotas te faltan." />}
       <div className="space-y-3">
-        {debts.map((d) => <DebtCard key={d.id} id={d.id} />)}
+        {debts.map((d) => <DebtCard key={d.id} id={d.id} schedule={paySchedule} />)}
+      </div>
+
+      {/* ME DEBEN */}
+      <SectionTitle action={<AddBtn onClick={() => setLoanOpen(true)} />}>Me deben</SectionTitle>
+      {loans.length === 0 && <Empty text="Registra a quién le prestaste plata y lleva el conteo de lo que te deben." />}
+      <div className="space-y-3">
+        {loans.map((l) => <LoanCard key={l.id} id={l.id} />)}
       </div>
 
       <Sheet open={goalOpen} onClose={() => setGoalOpen(false)} title="Nueva meta">
@@ -69,6 +80,9 @@ export function Plan() {
       </Sheet>
       <Sheet open={cardOpen} onClose={() => setCardOpen(false)} title="Nueva tarjeta de crédito">
         <CreditForm onDone={() => setCardOpen(false)} />
+      </Sheet>
+      <Sheet open={loanOpen} onClose={() => setLoanOpen(false)} title="Nuevo préstamo">
+        <LoanForm onDone={() => setLoanOpen(false)} />
       </Sheet>
     </div>
   );
@@ -363,7 +377,7 @@ function Challenge() {
 }
 
 /* ---------- Deuda: contador de cuotas ---------- */
-function DebtCard({ id }: { id: string }) {
+function DebtCard({ id, schedule }: { id: string; schedule: PaySchedule }) {
   const debt = useStore((s) => s.debts.find((d) => d.id === id))!;
   const pay = useStore((s) => s.payInstallment);
   const undo = useStore((s) => s.undoInstallment);
@@ -382,7 +396,7 @@ function DebtCard({ id }: { id: string }) {
           <div>
             <p className="font-semibold">{debt.name}</p>
             <p className="text-[12px] text-ink3 tnum">
-              Cuota {money(debt.installmentValue)} · quincena del {debt.payPeriod === "primera" ? 5 : 20}
+              Cuota {money(debt.installmentValue)} · {debtPeriodLabel(debt.payPeriod, schedule)}
             </p>
           </div>
         </div>
@@ -438,6 +452,79 @@ function DebtCard({ id }: { id: string }) {
           </button>
         </div>
       )}
+    </Card>
+  );
+}
+
+/* ---------- Me deben: plata que le prestaste a alguien ---------- */
+function LoanCard({ id }: { id: string }) {
+  const loan = useStore((s) => s.loans.find((l) => l.id === id));
+  const repay = useStore((s) => s.loanRepayment);
+  const remove = useStore((s) => s.removeLoan);
+  const [payOpen, setPayOpen] = useState(false);
+  if (!loan) return null;
+
+  const pending = Math.max(0, loan.amount - loan.paidBack);
+  const ratio = loan.amount > 0 ? loan.paidBack / loan.amount : 0;
+  const done = pending <= 0;
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="text-2xl">{loan.emoji}</span>
+          <div>
+            <p className="font-semibold">{loan.person}</p>
+            <p className="text-[12px] text-ink3 tnum">
+              Prestaste {money(loan.amount)} · {fmtCorto(parseISO(loan.date))}
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className={`text-[18px] font-bold tnum ${done ? "text-accent" : "text-ink"}`}>
+            {money(pending)}
+          </p>
+          <p className="text-[10px] text-ink3 uppercase tracking-wide">
+            {done ? "saldado" : "te deben"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <ProgressBar ratio={ratio} level="ok" />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[13px]">
+        <span className="text-ink3">Te ha devuelto</span>
+        <span className="tnum font-semibold">{money(loan.paidBack)} de {money(loan.amount)}</span>
+      </div>
+      {loan.note && <p className="text-[12px] text-ink3 mt-1">{loan.note}</p>}
+
+      {done ? (
+        <div className="mt-3 py-2.5 rounded-xl bg-accent/12 text-accent font-semibold text-center text-[14px]">
+          Te pagó todo 🎉
+        </div>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setPayOpen(true)}
+            className="flex-1 py-2.5 rounded-xl bg-accent text-white font-semibold text-[14px]"
+          >
+            Registrar abono
+          </motion.button>
+          <button onClick={() => remove(loan.id)} className="px-3 rounded-xl text-ink3 text-[13px]">
+            Borrar
+          </button>
+        </div>
+      )}
+
+      <AmountSheet
+        open={payOpen}
+        onClose={() => setPayOpen(false)}
+        title={`Abono de ${loan.person}`}
+        cta="Registrar"
+        onConfirm={(amt) => repay(loan.id, amt)}
+      />
     </Card>
   );
 }
