@@ -2,12 +2,18 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-// En build usamos la subruta del repo (GitHub Pages: /finanzas-quincena/).
-// En dev servimos desde la raíz para comodidad local.
+// En build para web usamos la subruta del repo (GitHub Pages: /finanzas-quincena/).
+// En dev servimos desde la raíz. Para el build empaquetado en el APK (Capacitor),
+// CAP_BUILD=true fuerza base relativa y una carpeta de salida aparte (dist-apk),
+// porque dentro del WebView nativo no existe ese subpath del servidor.
 export default defineConfig(({ command }) => {
-  const base = command === "build" ? "/finanzas-quincena/" : "/";
+  const isCapacitor = process.env.CAP_BUILD === "true";
+  const base = isCapacitor ? "./" : command === "build" ? "/finanzas-quincena/" : "/";
   return {
     base,
+    build: {
+      outDir: isCapacitor ? "dist-apk" : "dist",
+    },
     plugins: [
       react(),
       VitePWA({

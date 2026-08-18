@@ -31,6 +31,8 @@ export function Settings() {
   const exportJSON = useStore((s) => s.exportJSON);
   const importJSON = useStore((s) => s.importJSON);
   const resetAll = useStore((s) => s.resetAll);
+  const lastBackupExportAt = useStore((s) => s.lastBackupExportAt);
+  const markBackupExported = useStore((s) => s.markBackupExported);
   const [fixedOpen, setFixedOpen] = useState(false);
   const [catOpen, setCatOpen] = useState(false);
   const [editCat, setEditCat] = useState<Category | null>(null);
@@ -51,6 +53,7 @@ export function Settings() {
     a.download = `mis-finanzas-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    markBackupExported();
   };
 
   const doImport = (file: File) => {
@@ -247,9 +250,22 @@ export function Settings() {
 
       {/* Datos */}
       <SectionTitle>Datos</SectionTitle>
+      <Card className="p-4 mb-3">
+        <p className="text-[13px] font-medium">🔄 Respaldo automático activo</p>
+        <p className="text-[12px] text-ink3 mt-1">
+          Tus datos se guardan solos en este dispositivo cada vez que registras algo (dos copias
+          independientes). Si algún día se borra el navegador, exporta seguido un JSON aparte
+          para tenerlo también fuera del teléfono.
+        </p>
+      </Card>
       <Card className="divide-y hairline">
-        <button onClick={doExport} className="w-full px-4 py-3.5 text-left flex justify-between">
-          <span>Exportar respaldo (JSON)</span>
+        <button onClick={doExport} className="w-full px-4 py-3.5 text-left flex items-center justify-between">
+          <div>
+            <p>Exportar respaldo (JSON)</p>
+            <p className="text-[11px] text-ink3 mt-0.5">
+              {lastBackupExportAt ? `Último: ${backupAgeLabel(lastBackupExportAt)}` : "Nunca lo has exportado"}
+            </p>
+          </div>
           <span className="text-ink3">↓</span>
         </button>
         <button onClick={() => fileRef.current?.click()} className="w-full px-4 py-3.5 text-left flex justify-between">
@@ -456,4 +472,12 @@ function PayScheduleEditor({
       <p className="text-[12px] text-ink3">{scheduleDescription(schedule)}</p>
     </Card>
   );
+}
+
+/** "hoy" / "ayer" / "hace N días" a partir de un ISO datetime. */
+function backupAgeLabel(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return "hoy";
+  if (days === 1) return "ayer";
+  return `hace ${days} días`;
 }

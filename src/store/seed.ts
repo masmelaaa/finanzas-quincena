@@ -54,6 +54,8 @@ export interface AppData {
   transport: typeof DEFAULT_TRANSPORT;
   /** Cómo y cuándo te pagan (quincenal/semanal/mensual). */
   paySchedule: PaySchedule;
+  /** Última vez que el usuario exportó un respaldo JSON manual (ISO datetime). */
+  lastBackupExportAt: string | null;
   onboarded: boolean;
 }
 
@@ -86,6 +88,7 @@ export function seedData(): AppData {
     challenge: emptyChallenge,
     transport: { ...DEFAULT_TRANSPORT },
     paySchedule: { ...DEFAULT_SCHEDULE },
+    lastBackupExportAt: null,
     onboarded: false,
   };
 }

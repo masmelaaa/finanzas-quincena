@@ -3,12 +3,20 @@ node_modules/
 
 # Build
 dist/
+dist-apk/
 dist-ssr/
 *.local
 *.tsbuildinfo
 
 # Capacitor (proyecto Android generado)
 android/
+assets/icon.png
+assets/splash.png
+
+# Firma de release del APK — NUNCA subir (es la identidad de la app para actualizarla)
+*.jks
+*.keystore
+keystore.properties
 
 # Datos financieros del usuario (nunca se suben — viven en localStorage del navegador)
 # No hay archivos de datos en el repo, pero por si acaso se exporta un backup aquí:
@@ -34,3 +42,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
+
+
+# APKs compilados (binarios, no van al repo de código)
+releases/

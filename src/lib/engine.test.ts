@@ -3,6 +3,8 @@ import { dateAt } from "./dates";
 import { easterSunday, holidayName, isHoliday, holidaysOfYear } from "./holidays";
 import { periodFor, periodLength } from "./periods";
 import { DEFAULT_TRANSPORT, transportPlan } from "./transport";
+import { suggestCategory } from "./categorize";
+import type { Category } from "./types";
 
 describe("Festivos de Colombia", () => {
   it("Pascua 2026 = 5 de abril, 2027 = 28 de marzo", () => {
@@ -118,5 +120,30 @@ describe("Transporte — valores verificados contra el calendario real", () => {
     const p = periodFor(dateAt(2026, 8, 9));
     const plan = transportPlan(p, { ...DEFAULT_TRANSPORT, includeSundays: true });
     expect(plan.totalCost).toBe(49_700);
+  });
+});
+
+describe("Sugerencia automática de categoría", () => {
+  const cats: Category[] = [
+    { id: "comida", name: "Comida", emoji: "🍔", limit: 0 },
+    { id: "transporte", name: "Transporte", emoji: "🚌", limit: 0 },
+    { id: "mercado", name: "Mercado", emoji: "🛒", limit: 0 },
+  ];
+
+  it("detecta 'Uber a la casa' → Transporte", () => {
+    expect(suggestCategory("Uber a la casa", cats)?.id).toBe("transporte");
+  });
+
+  it("detecta 'Almuerzo con Juan' → Comida", () => {
+    expect(suggestCategory("Almuerzo con Juan", cats)?.id).toBe("comida");
+  });
+
+  it("sin pista devuelve undefined", () => {
+    expect(suggestCategory("cosas varias", cats)).toBeUndefined();
+  });
+
+  it("si la categoría no existe en la lista del usuario, no sugiere nada", () => {
+    const sinComida = cats.filter((c) => c.id !== "comida");
+    expect(suggestCategory("Pizza de la esquina", sinComida)).toBeUndefined();
   });
 });

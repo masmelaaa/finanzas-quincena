@@ -16,6 +16,7 @@ import type {
   ThemeMode,
 } from "../lib/types";
 import type { TransportConfig } from "../lib/transport";
+import { saveBackup } from "../lib/idbBackup";
 import { seedData, type AppData } from "./seed";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -68,6 +69,8 @@ interface Store extends AppData {
   clearTransportOverride: (periodId: string) => void;
   // Días de pago
   setPaySchedule: (schedule: PaySchedule) => void;
+  // Respaldo
+  markBackupExported: () => void;
   // Tema
   setTheme: (t: ThemeMode) => void;
   // Onboarding
@@ -399,6 +402,8 @@ export const useStore = create<Store>()(
 
       setPaySchedule: (schedule) => set({ paySchedule: schedule }),
 
+      markBackupExported: () => set({ lastBackupExportAt: new Date().toISOString() }),
+
       setTheme: (theme) => set({ theme }),
 
       finishOnboarding: () => set({ onboarded: true }),
@@ -423,6 +428,7 @@ export const useStore = create<Store>()(
           challenge: s.challenge,
           transport: s.transport,
           paySchedule: s.paySchedule,
+          lastBackupExportAt: s.lastBackupExportAt,
           onboarded: s.onboarded,
         };
         return JSON.stringify(data, null, 2);
@@ -461,6 +467,18 @@ export const useStore = create<Store>()(
     },
   ),
 );
+
+// Respaldo automático en IndexedDB (segunda copia, aparte de localStorage).
+// Se guarda solo, sin que el usuario tenga que hacer nada, con un pequeño
+// debounce para no escribir en cada tecla.
+let backupTimer: ReturnType<typeof setTimeout> | null = null;
+useStore.subscribe((state) => {
+  if (!state.onboarded) return; // nada útil que respaldar todavía
+  if (backupTimer) clearTimeout(backupTimer);
+  backupTimer = setTimeout(() => {
+    saveBackup(useStore.getState().exportJSON());
+  }, 1500);
+});
 
 /** Hook de conveniencia: el periodo actual (recalculado en cada render). */
 export function useCurrentPeriod() {
